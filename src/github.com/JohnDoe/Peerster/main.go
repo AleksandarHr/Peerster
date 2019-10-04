@@ -183,19 +183,19 @@ func writePeerMessageToStandardOutput (msg SimpleMessage) {
 
 func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage) {
 
-  listOfPeers := strings.Split(gossiper.Peers, ",")
-
-  for _, peer := range listOfPeers {
-    pair := decoupleIpAndPort(peer)
-    port, _ := strconv.Atoi(pair.Port)
-    packetBytes, err := protobuf.Encode(&msg)
-    if err != nil {
-      fmt.Println("Error encoding a simple message: ", err)
+  if (len(gossiper.Peers) != 0) {
+    listOfPeers := strings.Split(gossiper.Peers, ",")
+    for _, peer := range listOfPeers {
+      pair := decoupleIpAndPort(peer)
+      port, _ := strconv.Atoi(pair.Port)
+      packetBytes, err := protobuf.Encode(&msg)
+      if err != nil {
+        fmt.Println("Error encoding a simple message: ", err)
+      }
+      fmt.Println("Number of bytes sent === ", len(packetBytes))
+      gossiper.Conn.WriteToUDP(packetBytes, &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
     }
-    fmt.Println("Number of bytes sent === ", len(packetBytes))
-    gossiper.Conn.WriteToUDP(packetBytes, &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
   }
-
 }
 
 func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
