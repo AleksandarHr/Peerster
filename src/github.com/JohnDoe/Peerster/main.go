@@ -53,7 +53,7 @@ type GossipPacket struct {
 }
 
 type FlagsInformation struct {
-  UIPort int
+  UIPort string
   GossipAddress string
   Name string
   Peers string
@@ -77,7 +77,7 @@ func main() {
 
   go func() {
     defer wg.Done()
-    handleClientMessages(gossiper, flags.GossipAddress)
+    handleClientMessages(gossiper, flags.UIPort)
   } ()
 
   wg.Add(1)
@@ -104,7 +104,7 @@ func handleFlags() (*FlagsInformation) {
   // Parse all flagse
   flag.Parse()
 
-  port, _ := strconv.Atoi(*UIPort_flag);
+  port := *UIPort_flag;
   gossipAddr := *gossipAddr_flag;
   name := *name_flag;
   peers := *peers_flag;
@@ -114,11 +114,23 @@ func handleFlags() (*FlagsInformation) {
   return &flagsInfo
 }
 
-func handleClientMessages(gossiper *Gossiper, addressString string) {
+func handleClientMessages(gossiper *Gossiper, uiPort string) {
+
   // Listen for incoming UDP messages from clients
+  uiAddress := localhost + ":" + uiPort
+  uiAddr, err := net.ResolveUDPAddr("udp4", uiAddress)
+  if err != nil {
+    fmt.Println("Error resolving udp addres: ", err)
+  }
+
+  uiConn, err := net.ListenUDP("udp4", uiAddr)
+  if err != nil {
+    fmt.Println("Error listening: ", err)
+  }
+
   client_buffer := make([]byte, maxBufferSize)
   for {
-    numBytes, conn, err := gossiper.Conn.ReadFromUDP(client_buffer)
+    numBytes, conn, err := uiConn.ReadFromUDP(client_buffer)
     if err != nil {
       fmt.Println("could not read from UDP")
     }
@@ -129,11 +141,11 @@ func handleClientMessages(gossiper *Gossiper, addressString string) {
 
     // Create a simple message object
     simpleMessage := SimpleMessage{}
-    simpleMessage.OriginalName = "blah"
-    simpleMessage.RelayPeerAddr = addressString
-    simpleMessage.Contents = string(client_buffer)
+    simpleMessage.OriginalName = gossiper.Name
+    simpleMessage.RelayPeerAddr = string(gossiper.Address.IP) + string(gossiper.Address.Port)
+    simpleMessage.Contents = string(client_buffer[0:numBytes])
 
-    //propagateGossipPacket(simpleMessage, "")
+    propagateGossipPacket(gossiper, simpleMessage)
   }
 }
 
@@ -143,13 +155,15 @@ func handlePeerMessages (gossiper *Gossiper, flags *FlagsInformation) {
   //ipArray := strings.Split(ipPort.IP, ".")
 
   peer_buffer := make([]byte, maxBufferSize)
-
   for {
     numBytes, _, _ := gossiper.Conn.ReadFromUDP(peer_buffer)
+    fmt.Println("NUMBER OF BYTES READ === ", numBytes)
     packet := SimpleMessage{}
-    protobuf.Decode(peer_buffer[:numBytes], packet)
-
-    fmt.Println("AFTER DECODING PEER MESSAGE")
+    err := protobuf.Decode(peer_buffer[:numBytes], &packet)
+    if err != nil {
+      fmt.Println("Error decoding message: ", err)
+    }
+    writePeerMessageToStandardOutput(packet)
   }
 }
 
@@ -167,33 +181,32 @@ func writePeerMessageToStandardOutput (msg SimpleMessage) {
   fmt.Println("PEERS " + stringOfPeers.String())
 }
 
-func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage, senderAddress string) {
+func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage) {
 
   listOfPeers := strings.Split(gossiper.Peers, ",")
 
   for _, peer := range listOfPeers {
     pair := decoupleIpAndPort(peer)
     port, _ := strconv.Atoi(pair.Port)
-    packetBytes, _ := protobuf.Encode(msg)
+    packetBytes, err := protobuf.Encode(&msg)
+    if err != nil {
+      fmt.Println("Error encoding a simple message: ", err)
+    }
+    fmt.Println("Number of bytes sent === ", len(packetBytes))
     gossiper.Conn.WriteToUDP(packetBytes, &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
   }
 
-  if(len(senderAddress) > 0) {
-    // Peer message - send to all known peers BUT DO NOT SEND BACK TO THE INITIAL SENDER
-  } else {
-    // Client message - simply send to all known peers
-  }
 }
 
 func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
   udpAddr, err := net.ResolveUDPAddr("udp4", address)
   if err != nil {
-    fmt.Println("Error resolving udp addres: %s", err)
+    fmt.Println("Error resolving udp addres: ", err)
   }
 
   udpConn, err := net.ListenUDP("udp4", udpAddr)
   if err != nil {
-    fmt.Println("Error listening: %s", err)
+    fmt.Println("Error listening: ", err)
   }
 
   fmt.Println("Gossiper is up and listening on ", address)
