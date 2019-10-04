@@ -1,7 +1,7 @@
 package main
 import "flag"
 import "net"
-import "strconv"
+import "fmt"
 
 func main() {
 
@@ -9,11 +9,30 @@ func main() {
   var msg_flag = flag.String("msg", "", "message to be sent")
   flag.Parse()
 
-  UIPort, _ := strconv.Atoi(*UIPort_flag)
+//  UIPort, _ := strconv.Atoi(*UIPort_flag)
+  service := "127.0.0.1" + ":" + *UIPort_flag
   msg := *msg_flag
 
   // Opens a UDP connection to send messages read-in from the console
-  UDPConnection, _ := net.DialUDP("udp", nil, &net.UDPAddr{IP: []byte{127,0,0,1}, Port:UIPort, Zone:""})
-  defer UDPConnection.Close()
-  UDPConnection.Write([]byte(msg))
+  remoteAddress, err := net.ResolveUDPAddr("udp4", service)
+  if err != nil {
+    fmt.Println("Error resolving udp address")
+    return
+  }
+  udpConn, err := net.DialUDP("udp", nil, remoteAddress)
+  if err != nil {
+    fmt.Println("Error dialing udp")
+    return
+  }
+
+  defer udpConn.Close()
+
+  _, err = udpConn.Write([]byte(msg))
+  if err != nil {
+    fmt.Println("Error writing message")
+    return
+  }
+
+  fmt.Println("MESSAGE $", msg, "$ was sent to ", service)
+
 }

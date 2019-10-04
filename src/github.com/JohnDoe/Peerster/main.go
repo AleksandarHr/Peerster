@@ -5,7 +5,7 @@ import "fmt"
 import "strconv"
 import "strings"
 import "sync"
-//import "github.com/dedis/protobuf"
+import "github.com/dedis/protobuf"
 
 /*
   Gossiper program
@@ -37,6 +37,13 @@ type SimpleMessage struct {
   Contents string
 }
 
+type Gossiper struct {
+  Address *net.UDPAddr
+  Conn *net.UDPConn
+  Name string
+  Peers string
+}
+
 /*
   To provide compatibility with future versions, the ONLY packets sent to other peers
     will be the GossipPacket's. For now it only contains a SimpleMessage
@@ -61,19 +68,22 @@ type IpPortPair struct {
 func main() {
 
   flags := handleFlags();
+  gossiper := NewGossiper(flags.GossipAddress, flags);
+
+  defer gossiper.Conn.Close();
 
   var wg = &sync.WaitGroup{}
   wg.Add(1)
 
   go func() {
     defer wg.Done()
-    handleClientMessages(flags)
+    handleClientMessages(gossiper, flags.GossipAddress)
   } ()
 
   wg.Add(1)
   go func() {
     defer wg.Done()
-    handlePeerMessages(flags)
+    handlePeerMessages(gossiper, flags)
   }()
   wg.Wait()
 }
@@ -82,7 +92,6 @@ func main() {
 func decoupleIpAndPort(ipPort string) IpPortPair {
   sl := strings.Split(ipPort, ":");
   pair := IpPortPair{IP : sl[0], Port : sl[1]}
-
   return pair;
 }
 
@@ -105,53 +114,48 @@ func handleFlags() (*FlagsInformation) {
   return &flagsInfo
 }
 
-func handleClientMessages(flags *FlagsInformation) {
+func handleClientMessages(gossiper *Gossiper, addressString string) {
   // Listen for incoming UDP messages from clients
   client_buffer := make([]byte, maxBufferSize)
-  UDPConnection, _ := net.ListenUDP("udp", &net.UDPAddr{IP: []byte{127,0,0,1}, Port: flags.UIPort, Zone:""})
-  defer UDPConnection.Close()
-
   for {
-    numBytes, _, _ := UDPConnection.ReadFromUDP(client_buffer)
-    writeClientMessageToStandardOutput(string(client_buffer[0:numBytes]))
+    numBytes, conn, err := gossiper.Conn.ReadFromUDP(client_buffer)
+    if err != nil {
+      fmt.Println("could not read from UDP")
+    }
+    if conn == nil {
+      continue
+    }
+    writeClientMessageToStandardOutput(string(client_buffer[0:numBytes]), gossiper.Peers)
 
     // Create a simple message object
     simpleMessage := SimpleMessage{}
-    simpleMessage.OriginalName = flags.Name
-    simpleMessage.RelayPeerAddr = flags.GossipAddress
+    simpleMessage.OriginalName = "blah"
+    simpleMessage.RelayPeerAddr = addressString
     simpleMessage.Contents = string(client_buffer)
+
+    //propagateGossipPacket(simpleMessage, "")
   }
 }
 
-func handlePeerMessages (flags *FlagsInformation) {
+func handlePeerMessages (gossiper *Gossiper, flags *FlagsInformation) {
 
   // Goroutine (thread) to handle incoming messages from other gossipers
-  mapOfPeers[flags.GossipAddress] = true
-  stringOfPeers.WriteString(flags.GossipAddress);
-
-  ipPort := decoupleIpAndPort(flags.GossipAddress)
-  port,_ := strconv.Atoi(ipPort.Port)
   //ipArray := strings.Split(ipPort.IP, ".")
 
   peer_buffer := make([]byte, maxBufferSize)
-  UDPConnection, _ := net.ListenUDP("udp", &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
-  defer UDPConnection.Close()
 
   for {
-    numBytes, address, _ := UDPConnection.ReadFromUDP(peer_buffer)
-    fmt.Println("Message received: ", string(peer_buffer[0:numBytes]), " from ", address)
+    numBytes, _, _ := gossiper.Conn.ReadFromUDP(peer_buffer)
+    packet := SimpleMessage{}
+    protobuf.Decode(peer_buffer[:numBytes], packet)
 
-    // Create a simple message object
-    simpleMessage := SimpleMessage{}
-    simpleMessage.OriginalName = flags.Name
-    simpleMessage.RelayPeerAddr = flags.GossipAddress
-    simpleMessage.Contents = string(peer_buffer)
+    fmt.Println("AFTER DECODING PEER MESSAGE")
   }
 }
 
-func writeClientMessageToStandardOutput (msg string) {
+func writeClientMessageToStandardOutput (msg, peers string) {
   fmt.Println("CLIENT MESSAGE " + msg)
-  fmt.Println("PEERS " + stringOfPeers.String())
+  fmt.Println("PEERS " + peers)
 }
 
 func writePeerMessageToStandardOutput (msg SimpleMessage) {
@@ -163,10 +167,41 @@ func writePeerMessageToStandardOutput (msg SimpleMessage) {
   fmt.Println("PEERS " + stringOfPeers.String())
 }
 
-func propagateGossipPacket (packet GossipPacket, senderAddress string) {
+func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage, senderAddress string) {
+
+  listOfPeers := strings.Split(gossiper.Peers, ",")
+
+  for _, peer := range listOfPeers {
+    pair := decoupleIpAndPort(peer)
+    port, _ := strconv.Atoi(pair.Port)
+    packetBytes, _ := protobuf.Encode(msg)
+    gossiper.Conn.WriteToUDP(packetBytes, &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
+  }
+
   if(len(senderAddress) > 0) {
     // Peer message - send to all known peers BUT DO NOT SEND BACK TO THE INITIAL SENDER
   } else {
     // Client message - simply send to all known peers
+  }
+}
+
+func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
+  udpAddr, err := net.ResolveUDPAddr("udp4", address)
+  if err != nil {
+    fmt.Println("Error resolving udp addres: %s", err)
+  }
+
+  udpConn, err := net.ListenUDP("udp4", udpAddr)
+  if err != nil {
+    fmt.Println("Error listening: %s", err)
+  }
+
+  fmt.Println("Gossiper is up and listening on ", address)
+
+  return &Gossiper {
+    Address:  udpAddr,
+    Conn:     udpConn,
+    Name:     flags.Name,
+    Peers:    flags.Peers,
   }
 }
