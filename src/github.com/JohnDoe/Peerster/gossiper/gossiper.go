@@ -5,52 +5,17 @@ import "net"
 import "fmt"
 import "strings"
 import "github.com/dedis/protobuf"
+import "github.com/JohnDoe/Peerster/helpers"
 
 
 var maxBufferSize = 1024
 var localhost = "127.0.0.1"
-//FlagsInformation A struct to hold flags information
-type FlagsInformation struct {
-  UIPort string
-  GossipAddress string
-  Name string
-  Peers string
-  Simple bool
-}
-
-/*SimpleMessage - to begin with, we will send containing the following:
-   - OriginalName = original sender's name
-   - RelayPeerAddr = relay peer's address in the form 'ip:port'
-   - Contents = the text message itself */
-type SimpleMessage struct {
-  OriginalName string
-  RelayPeerAddr string
-  Contents string
-}
-
-/*Gossiper - a struct containing
-    * Address - the udp address of the gossiper node
-    * Conn - the udp connection of the gossiper node
-    * Name - the name of the gossiper node
-    * Peers - a map of the addresses of peers' nodes known to this gossiper node*/
-type Gossiper struct {
-  Address *net.UDPAddr
-  Conn *net.UDPConn
-  Name string
-  Peers map[string]bool
-}
-
-/*GossipPacket - To provide compatibility with future versions, the ONLY packets sent to other peers
-    will be the GossipPacket's. For now it only contains a SimpleMessage*/
-type GossipPacket struct {
-  Simple *SimpleMessage
-}
 
 /*NewGossiper - a function acting as a constructor for a the Gossiper struct, returns a pointer
   - address, string - the address for the gossiper node in the form 'ip:port'
   - flags, *FlagsInformation - a pointer to a FlagsInformation object
 */
-func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
+func NewGossiper(address string, flags *helpers.FlagsInformation) *helpers.Gossiper {
   udpAddr, err := net.ResolveUDPAddr("udp4", address)
   if err != nil {
     fmt.Println("Error resolving udp addres: ", err)
@@ -68,7 +33,7 @@ func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
 
   fmt.Println("Gossiper is up and listening on ", address)
 
-  return &Gossiper {
+  return &helpers.Gossiper {
     Address:  udpAddr,
     Conn:     udpConn,
     Name:     flags.Name,
@@ -78,7 +43,7 @@ func NewGossiper(address string, flags *FlagsInformation) *Gossiper {
 
 /*HandleFlags - A function to handle flags passed to the gossiper as described at the beginning of the file
 */
-func HandleFlags() (*FlagsInformation) {
+func HandleFlags() (*helpers.FlagsInformation) {
   // Read all the flags
   var UIPortFlag = flag.String("UIPort", "8080", "port for the UI client")
   var gossipAddrFlag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
@@ -96,19 +61,19 @@ func HandleFlags() (*FlagsInformation) {
   peers := *peersFlag;
   simple := *simpleFlag;
 
-  flagsInfo := FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
+  flagsInfo := helpers.FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
   return &flagsInfo
 }
 
 /*HandlePeerMessages - a function to handle messages coming from a client
     * gossiper *Gossiper - poitner to a gossiper
 */
-func HandlePeerMessages (gossiper *Gossiper) {
+func HandlePeerMessages (gossiper *helpers.Gossiper) {
   // Goroutine (thread) to handle incoming messages from other gossipers
   peerBuffer := make([]byte, maxBufferSize)
   for {
     numBytes, _, _ := gossiper.Conn.ReadFromUDP(peerBuffer)
-    packet := GossipPacket{}
+    packet := helpers.GossipPacket{}
     err := protobuf.Decode(peerBuffer[:numBytes], &packet)
     if err != nil {
       fmt.Println("Error decoding message: ", err)
@@ -133,7 +98,7 @@ func HandlePeerMessages (gossiper *Gossiper) {
     * gossiper *Gossiper - poitner to a gossiper
     * uiPort string - the uiPort of the current gossiper
 */
-func HandleClientMessages(gossiper *Gossiper, uiPort string) {
+func HandleClientMessages(gossiper *helpers.Gossiper, uiPort string) {
 
   // Resolve uiAddress and listen for incoming UDP messages from clients
   // NOTE: We assume that the client runs locally, so client's address is "127.0.0.1:UIPort"
@@ -163,47 +128,34 @@ func HandleClientMessages(gossiper *Gossiper, uiPort string) {
     writeClientMessageToStandardOutput(gossiper, string(clientBuffer[0:numBytes]))
 
     // Create a simple message object
-    simpleMessage := SimpleMessage{}
+    simpleMessage := helpers.SimpleMessage{}
     simpleMessage.OriginalName = gossiper.Name
     simpleMessage.RelayPeerAddr = gossiper.Address.String()
     simpleMessage.Contents = string(clientBuffer[0:numBytes])
-    gossipPacket := GossipPacket{Simple: &simpleMessage}
+    gossipPacket := helpers.GossipPacket{Simple: &simpleMessage}
 
     // Propagate the client message in the form of a SimpleMessage to known peers
     propagateGossipPacket(gossiper, gossipPacket, "")
   }
 }
 
-func writeClientMessageToStandardOutput (gossiper *Gossiper, msg string) {
+func writeClientMessageToStandardOutput (gossiper *helpers.Gossiper, msg string) {
   fmt.Println("CLIENT MESSAGE " + msg)
-  fmt.Println("PEERS " + joinMapKeys(gossiper.Peers))
+  fmt.Println("PEERS " + helpers.JoinMapKeys(gossiper.Peers))
 }
 
-func writePeerMessageToStandardOutput (gossiper *Gossiper, packet GossipPacket) {
+func writePeerMessageToStandardOutput (gossiper *helpers.Gossiper, packet helpers.GossipPacket) {
   fmt.Println("SIMPLE MESSAGE origin " +
               packet.Simple.OriginalName +
               " from " +
               packet.Simple.RelayPeerAddr +
               " contents " + packet.Simple.Contents)
-  fmt.Println("PEERS " + joinMapKeys(gossiper.Peers))
+  fmt.Println("PEERS " + helpers.JoinMapKeys(gossiper.Peers))
 }
 
-func joinMapKeys (m map[string]bool) string {
+func propagateGossipPacket (gossiper *helpers.Gossiper, gossipPacket helpers.GossipPacket, peerSenderAddress string) {
 
-  keys := make([]string, 0, len(m))
-  for k := range m {
-    if k != "" {
-      keys = append(keys, k)
-    }
-  }
-
-  return strings.Join(keys, ",")
-}
-
-
-func propagateGossipPacket (gossiper *Gossiper, gossipPacket GossipPacket, peerSenderAddress string) {
-
-  peers := joinMapKeys(gossiper.Peers)
+  peers := helpers.JoinMapKeys(gossiper.Peers)
 
   if (len(peers) != 0) {
     listOfPeers := strings.Split(peers, ",")
