@@ -2,7 +2,7 @@ package main
 import "flag"
 import "net"
 import "fmt"
-import "strconv"
+//import "strconv"
 import "strings"
 import "sync"
 import "github.com/dedis/protobuf"
@@ -35,6 +35,13 @@ type SimpleMessage struct {
   Contents string
 }
 
+/*
+  Gossiper struct containint
+    * Address - the udp address of the gossiper node
+    * Conn - the udp connection of the gossiper node
+    * Name - the name of the gossiper node
+    * Peers - a map of the addresses of peers' nodes known to this gossiper node
+*/
 type Gossiper struct {
   Address *net.UDPAddr
   Conn *net.UDPConn
@@ -50,17 +57,13 @@ type GossipPacket struct {
   Simple *SimpleMessage
 }
 
+// A struct to hold flags information
 type FlagsInformation struct {
   UIPort string
   GossipAddress string
   Name string
   Peers string
   Simple bool
-}
-
-type IpPortPair struct {
-  IP string
-  Port string
 }
 
 func main() {
@@ -81,27 +84,26 @@ func main() {
   wg.Add(1)
   go func() {
     defer wg.Done()
-    handlePeerMessages(gossiper, flags)
+    handlePeerMessages(gossiper)
   }()
   wg.Wait()
 }
 
-
-func decoupleIpAndPort(ipPort string) IpPortPair {
-  sl := strings.Split(ipPort, ":");
-  pair := IpPortPair{IP : sl[0], Port : sl[1]}
-  return pair;
-}
-
+/*
+  A function to handle flags passed to the gossiper as described at the beginning of the file
+*/
 func handleFlags() (*FlagsInformation) {
+  // Read all the flags
   var UIPort_flag = flag.String("UIPort", "8080", "port for the UI client")
   var gossipAddr_flag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
   var name_flag = flag.String("name", "new_node", "name of the gossiper")
   var peers_flag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
   var simple_flag = flag.Bool("simple", true, "run gossiper in simple mode")
+
   // Parse all flagse
   flag.Parse()
 
+  // Save the flags information
   port := *UIPort_flag;
   gossipAddr := *gossipAddr_flag;
   name := *name_flag;
@@ -112,22 +114,30 @@ func handleFlags() (*FlagsInformation) {
   return &flagsInfo
 }
 
+
+/*
+  A function to handle messages coming from a client
+    * gossiper *Gossiper - poitner to a gossiper
+    * uiPort string - the uiPort of the current gossiper
+*/
 func handleClientMessages(gossiper *Gossiper, uiPort string) {
 
-  // Listen for incoming UDP messages from clients
+  // Resolve uiAddress and listen for incoming UDP messages from clients
+  // NOTE: We assume that the client runs locally, so client's address is "127.0.0.1:UIPort"
   uiAddress := localhost + ":" + uiPort
   uiAddr, err := net.ResolveUDPAddr("udp4", uiAddress)
   if err != nil {
     fmt.Println("Error resolving udp addres: ", err)
   }
-
   uiConn, err := net.ListenUDP("udp4", uiAddr)
   if err != nil {
     fmt.Println("Error listening: ", err)
   }
 
+  // Create a buffer for client messages and start an infinite for loop reading incoming messages
   client_buffer := make([]byte, maxBufferSize)
   for {
+    // Read incoming client message
     numBytes, conn, err := uiConn.ReadFromUDP(client_buffer)
     if err != nil {
       fmt.Println("could not read from UDP")
@@ -135,6 +145,8 @@ func handleClientMessages(gossiper *Gossiper, uiPort string) {
     if conn == nil {
       continue
     }
+
+    // Write received client message to standard output
     writeClientMessageToStandardOutput(gossiper, string(client_buffer[0:numBytes]))
 
     // Create a simple message object
@@ -143,12 +155,16 @@ func handleClientMessages(gossiper *Gossiper, uiPort string) {
     simpleMessage.RelayPeerAddr = gossiper.Address.String()
     simpleMessage.Contents = string(client_buffer[0:numBytes])
 
-    propagateGossipPacket(gossiper, simpleMessage)
+    // Propagate the client message in the form of a SimpleMessage to known peers
+    propagateGossipPacket(gossiper, simpleMessage, "")
   }
 }
 
-func handlePeerMessages (gossiper *Gossiper, flags *FlagsInformation) {
-
+/*
+  A function to handle messages coming from a client
+    * gossiper *Gossiper - poitner to a gossiper
+*/
+func handlePeerMessages (gossiper *Gossiper) {
   // Goroutine (thread) to handle incoming messages from other gossipers
   peer_buffer := make([]byte, maxBufferSize)
   for {
@@ -158,8 +174,18 @@ func handlePeerMessages (gossiper *Gossiper, flags *FlagsInformation) {
     if err != nil {
       fmt.Println("Error decoding message: ", err)
     }
-    gossiper.Peers[packet.RelayPeerAddr] = true
+
+    senderAddress := packet.RelayPeerAddr
+    // Store the RelayPeerAddr in the map of known peers
+    gossiper.Peers[senderAddress] = true
+    // Write received peer message to standard output
     writePeerMessageToStandardOutput(gossiper, packet)
+
+    // Change the RelayPeerAddr to the current gossiper node's address
+    packet.RelayPeerAddr = gossiper.Address.String()
+
+    // Propagate the peer message in the form of a SimpleMessage to known peers
+    propagateGossipPacket(gossiper, packet, senderAddress)
   }
 }
 
@@ -178,19 +204,27 @@ func writePeerMessageToStandardOutput (gossiper *Gossiper, msg SimpleMessage) {
 }
 
 
-func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage) {
+func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage, peerSenderAddress string) {
+
   peers := joinMapKeys(gossiper.Peers)
+
   if (len(peers) != 0) {
     listOfPeers := strings.Split(peers, ",")
+
     for _, peer := range listOfPeers {
-      pair := decoupleIpAndPort(peer)
-      port, _ := strconv.Atoi(pair.Port)
-      packetBytes, err := protobuf.Encode(&msg)
-      if err != nil {
-        fmt.Println("Error encoding a simple message: ", err)
+      if peer != peerSenderAddress {
+        udpAddr, err := net.ResolveUDPAddr("udp4", peer)
+        if err != nil {
+          fmt.Println("Error resolving udp addres: ", err)
+        }
+
+        packetBytes, err := protobuf.Encode(&msg)
+        if err != nil {
+          fmt.Println("Error encoding a simple message: ", err)
+        }
+
+        gossiper.Conn.WriteToUDP(packetBytes, udpAddr)
       }
-      fmt.Println("Number of bytes sent === ", len(packetBytes))
-      gossiper.Conn.WriteToUDP(packetBytes, &net.UDPAddr{IP: []byte{127,0,0,1}, Port: port, Zone:""})
     }
   }
 }

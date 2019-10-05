@@ -1,4 +1,4 @@
-package main
+package client
 import "flag"
 import "net"
 import "fmt"
