@@ -4,6 +4,8 @@ import "flag"
 import "net"
 import "fmt"
 import "strings"
+import "time"
+import "math/rand"
 import "github.com/dedis/protobuf"
 import "github.com/JohnDoe/Peerster/helpers"
 
@@ -141,7 +143,7 @@ func HandlePeerMessages (gossiper *helpers.Gossiper, simpleFlag bool) {
     }
 
     senderAddress := addr.String()
-    if packet.Simple != nil {
+    if (packet.Simple != nil) && simpleFlag {
       // Handle a SimpleMessage from a peer
       senderAddress = packet.Simple.RelayPeerAddr
       // Store the RelayPeerAddr in the map of known peers
@@ -150,18 +152,16 @@ func HandlePeerMessages (gossiper *helpers.Gossiper, simpleFlag bool) {
       writePeerSimpleMessageToStandardOutput(gossiper, packet)
       // Change the RelayPeerAddr to the current gossiper node's address
       packet.Simple.RelayPeerAddr = gossiper.Address.String()
+      broadcastGossipPacket(gossiper, packet, senderAddress)
     } else if packet.Rumor != nil {
       // Handle a RumorMessage from a peer
+      fmt.Println("RECEIVED A RUMOR")
+      fmt.Println("ORIGIN = ", packet.Rumor.Origin)
+      fmt.Println("ID = ", packet.Rumor.ID)
+      fmt.Println("TXT = ", packet.Rumor.Text)
+      sendStatusMessage(gossiper)
     } else if packet.Status != nil {
       // Handle a StatusMessage from a peer
-    }
-
-    // If we are in simple mode, simply broadcast the peer message to all known peers
-    //    except for the peer which send the message originally
-    if simpleFlag {
-      broadcastGossipPacket(gossiper, packet, senderAddress)
-    } else {
-      // Perform rumor mongering
       rumorMongering(gossiper, packet, senderAddress)
     }
   }
@@ -183,28 +183,48 @@ func writePeerSimpleMessageToStandardOutput (gossiper *helpers.Gossiper, packet 
 
 // Function to simply broadcast a newly received message (client or peer) to all known peers
 func broadcastGossipPacket (gossiper *helpers.Gossiper, gossipPacket helpers.GossipPacket, peerSenderAddress string) {
-    peers := helpers.JoinMapKeys(gossiper.Peers)
+    knownPeers := helpers.JoinMapKeys(gossiper.Peers)
 
-    if (len(peers) != 0) {
-      listOfPeers := strings.Split(peers, ",")
+    if (len(knownPeers) != 0) {
+      listOfPeers := strings.Split(knownPeers, ",")
 
       for _, peer := range listOfPeers {
         if peer != peerSenderAddress {
-          udpAddr, err := net.ResolveUDPAddr("udp4", peer)
-          if err != nil {
-            fmt.Println("Error resolving udp addres: ", err)
-          }
-
-          packetBytes, err := protobuf.Encode(&gossipPacket)
-          if err != nil {
-            fmt.Println("Error encoding a simple message: ", err)
-          }
-
-          gossiper.Conn.WriteToUDP(packetBytes, udpAddr)
+          sendPacket(gossiper, gossipPacket, peer)
         }
       }
     }
 }
 
 func rumorMongering (gossiper *helpers.Gossiper, gossipPacket helpers.GossipPacket, peerSenderAddress string) {
+  knownPeers := helpers.JoinMapKeys(gossiper.Peers)
+  if (len(knownPeers) != 0) {
+    listOfPeers := strings.Split(knownPeers, ",")
+    // pick a random peer to send the message to
+    seed := rand.NewSource(time.Now().UnixNano())
+    rng := rand.New(seed)
+    idx := rng.Intn(len(listOfPeers))
+    chosenPeer := listOfPeers[idx]
+    fmt.Println("CHOSEN PEER ADDRES = ", chosenPeer)
+    sendPacket(gossiper, gossipPacket, chosenPeer)
+  }
+}
+
+func sendStatusMessage(gossiper *helpers.Gossiper) {
+
+}
+
+func sendPacket(gossiper *helpers.Gossiper, gossipPacket helpers.GossipPacket, addressOfReceiver string) {
+
+    udpAddr, err := net.ResolveUDPAddr("udp4", addressOfReceiver)
+    if err != nil {
+      fmt.Println("Error resolving udp addres: ", err)
+    }
+
+    packetBytes, err := protobuf.Encode(&gossipPacket)
+    if err != nil {
+      fmt.Println("Error encoding a simple message: ", err)
+    }
+
+    gossiper.Conn.WriteToUDP(packetBytes, udpAddr)
 }
