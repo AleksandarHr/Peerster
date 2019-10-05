@@ -196,9 +196,12 @@ func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage) {
 }
 
 func joinMapKeys (m map[string]bool) string {
+
   keys := make([]string, 0, len(m))
   for k := range m {
-    keys = append(keys, k)
+    if k != "" {
+      keys = append(keys, k)
+    }
   }
 
   return strings.Join(keys, ",")
