@@ -34,7 +34,7 @@ type RumorMessage struct {
   Text    string
 }
 
-/*PeerStatus
+/*PeerStatus - 
     - Identifier, string - origin's name
     - NextID, uint32     - the next unseen message sequence number
 */
@@ -52,7 +52,6 @@ type PeerStatus struct {
 type StatusPacket struct {
   Want []PeerStatus
 }
-
 
 /*Gossiper - a struct containing
     * Address - the udp address of the gossiper node

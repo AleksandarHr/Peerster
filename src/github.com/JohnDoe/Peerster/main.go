@@ -29,13 +29,13 @@ func main() {
 
   go func() {
     defer wg.Done()
-    gossiper.HandleClientMessages(gossiperNode, flags.UIPort)
+    gossiper.HandleClientMessages(gossiperNode, flags.UIPort, flags.Simple)
   } ()
 
   wg.Add(1)
   go func() {
     defer wg.Done()
-    gossiper.HandlePeerMessages(gossiperNode)
+    gossiper.HandlePeerMessages(gossiperNode, flags.Simple)
   }()
   wg.Wait()
 }
