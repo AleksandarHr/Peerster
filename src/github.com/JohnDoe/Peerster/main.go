@@ -154,9 +154,10 @@ func handleClientMessages(gossiper *Gossiper, uiPort string) {
     simpleMessage.OriginalName = gossiper.Name
     simpleMessage.RelayPeerAddr = gossiper.Address.String()
     simpleMessage.Contents = string(client_buffer[0:numBytes])
+    gossipPacket := GossipPacket{Simple: &simpleMessage}
 
     // Propagate the client message in the form of a SimpleMessage to known peers
-    propagateGossipPacket(gossiper, simpleMessage, "")
+    propagateGossipPacket(gossiper, gossipPacket, "")
   }
 }
 
@@ -169,20 +170,20 @@ func handlePeerMessages (gossiper *Gossiper) {
   peer_buffer := make([]byte, maxBufferSize)
   for {
     numBytes, _, _ := gossiper.Conn.ReadFromUDP(peer_buffer)
-    packet := SimpleMessage{}
+    packet := GossipPacket{}
     err := protobuf.Decode(peer_buffer[:numBytes], &packet)
     if err != nil {
       fmt.Println("Error decoding message: ", err)
     }
 
-    senderAddress := packet.RelayPeerAddr
+    senderAddress := packet.Simple.RelayPeerAddr
     // Store the RelayPeerAddr in the map of known peers
     gossiper.Peers[senderAddress] = true
     // Write received peer message to standard output
     writePeerMessageToStandardOutput(gossiper, packet)
 
     // Change the RelayPeerAddr to the current gossiper node's address
-    packet.RelayPeerAddr = gossiper.Address.String()
+    packet.Simple.RelayPeerAddr = gossiper.Address.String()
 
     // Propagate the peer message in the form of a SimpleMessage to known peers
     propagateGossipPacket(gossiper, packet, senderAddress)
@@ -194,17 +195,17 @@ func writeClientMessageToStandardOutput (gossiper *Gossiper, msg string) {
   fmt.Println("PEERS " + joinMapKeys(gossiper.Peers))
 }
 
-func writePeerMessageToStandardOutput (gossiper *Gossiper, msg SimpleMessage) {
+func writePeerMessageToStandardOutput (gossiper *Gossiper, packet GossipPacket) {
   fmt.Println("SIMPLE MESSAGE origin " +
-              msg.OriginalName +
+              packet.Simple.OriginalName +
               " from " +
-              msg.RelayPeerAddr +
-              " contents " + msg.Contents)
+              packet.Simple.RelayPeerAddr +
+              " contents " + packet.Simple.Contents)
   fmt.Println("PEERS " + joinMapKeys(gossiper.Peers))
 }
 
 
-func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage, peerSenderAddress string) {
+func propagateGossipPacket (gossiper *Gossiper, gossipPacket GossipPacket, peerSenderAddress string) {
 
   peers := joinMapKeys(gossiper.Peers)
 
@@ -218,7 +219,7 @@ func propagateGossipPacket (gossiper *Gossiper, msg SimpleMessage, peerSenderAdd
           fmt.Println("Error resolving udp addres: ", err)
         }
 
-        packetBytes, err := protobuf.Encode(&msg)
+        packetBytes, err := protobuf.Encode(&gossipPacket)
         if err != nil {
           fmt.Println("Error encoding a simple message: ", err)
         }
