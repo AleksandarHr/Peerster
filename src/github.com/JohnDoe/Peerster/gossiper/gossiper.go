@@ -72,21 +72,31 @@ func HandlePeerMessages (gossiper *helpers.Gossiper) {
   // Goroutine (thread) to handle incoming messages from other gossipers
   peerBuffer := make([]byte, maxBufferSize)
   for {
-    numBytes, _, _ := gossiper.Conn.ReadFromUDP(peerBuffer)
+    numBytes, addr, errRead := gossiper.Conn.ReadFromUDP(peerBuffer)
+    if errRead != nil {
+      fmt.Println("Error reading from a peer message from UDP: ", errRead)
+    }
     packet := helpers.GossipPacket{}
-    err := protobuf.Decode(peerBuffer[:numBytes], &packet)
-    if err != nil {
-      fmt.Println("Error decoding message: ", err)
+    errDecode := protobuf.Decode(peerBuffer[:numBytes], &packet)
+    if errDecode != nil {
+      fmt.Println("Error decoding message: ", errDecode)
     }
 
-    senderAddress := packet.Simple.RelayPeerAddr
-    // Store the RelayPeerAddr in the map of known peers
-    gossiper.Peers[senderAddress] = true
-    // Write received peer message to standard output
-    writePeerMessageToStandardOutput(gossiper, packet)
-
-    // Change the RelayPeerAddr to the current gossiper node's address
-    packet.Simple.RelayPeerAddr = gossiper.Address.String()
+    senderAddress := addr.String()
+    if packet.Simple != nil {
+      // Handle a SimpleMessage from a peer
+      senderAddress = packet.Simple.RelayPeerAddr
+      // Store the RelayPeerAddr in the map of known peers
+      gossiper.Peers[senderAddress] = true
+      // Write received peer message to standard output
+      writePeerSimpleMessageToStandardOutput(gossiper, packet)
+      // Change the RelayPeerAddr to the current gossiper node's address
+      packet.Simple.RelayPeerAddr = gossiper.Address.String()
+    } else if packet.Rumor != nil {
+      // Handle a RumorMessage from a peer
+    } else if packet.Status != nil {
+      // Handle a StatusMessage from a peer
+    }
 
     // Propagate the peer message in the form of a SimpleMessage to known peers
     propagateGossipPacket(gossiper, packet, senderAddress)
@@ -103,22 +113,22 @@ func HandleClientMessages(gossiper *helpers.Gossiper, uiPort string) {
   // Resolve uiAddress and listen for incoming UDP messages from clients
   // NOTE: We assume that the client runs locally, so client's address is "127.0.0.1:UIPort"
   uiAddress := localhost + ":" + uiPort
-  uiAddr, err := net.ResolveUDPAddr("udp4", uiAddress)
-  if err != nil {
-    fmt.Println("Error resolving udp addres: ", err)
+  uiAddr, errResolve := net.ResolveUDPAddr("udp4", uiAddress)
+  if errResolve != nil {
+    fmt.Println("Error resolving udp addres: ", errResolve)
   }
-  uiConn, err := net.ListenUDP("udp4", uiAddr)
-  if err != nil {
-    fmt.Println("Error listening: ", err)
+  uiConn, errListen := net.ListenUDP("udp4", uiAddr)
+  if errListen != nil {
+    fmt.Println("Error listening: ", errListen)
   }
 
   // Create a buffer for client messages and start an infinite for loop reading incoming messages
   clientBuffer := make([]byte, maxBufferSize)
   for {
     // Read incoming client message
-    numBytes, conn, err := uiConn.ReadFromUDP(clientBuffer)
-    if err != nil {
-      fmt.Println("could not read from UDP")
+    numBytes, conn, errRead := uiConn.ReadFromUDP(clientBuffer)
+    if errRead != nil {
+      fmt.Println("Error reading from UDP: ", errRead)
     }
     if conn == nil {
       continue
@@ -144,7 +154,7 @@ func writeClientMessageToStandardOutput (gossiper *helpers.Gossiper, msg string)
   fmt.Println("PEERS " + helpers.JoinMapKeys(gossiper.Peers))
 }
 
-func writePeerMessageToStandardOutput (gossiper *helpers.Gossiper, packet helpers.GossipPacket) {
+func writePeerSimpleMessageToStandardOutput (gossiper *helpers.Gossiper, packet helpers.GossipPacket) {
   fmt.Println("SIMPLE MESSAGE origin " +
               packet.Simple.OriginalName +
               " from " +
