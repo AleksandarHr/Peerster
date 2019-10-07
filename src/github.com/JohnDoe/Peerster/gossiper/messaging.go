@@ -11,7 +11,7 @@ import "github.com/dedis/protobuf"
 
 
 // Function to simply broadcast a newly received message (client or peer) to all known peers
-func broadcastGossipPacket (gossiper *structs.Gossiper, gossipPacket structs.GossipPacket, peerSenderAddress string) {
+func broadcastGossipPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) {
     knownPeers := helpers.JoinMapKeys(gossiper.Peers)
 
     if (len(knownPeers) != 0) {
@@ -25,14 +25,14 @@ func broadcastGossipPacket (gossiper *structs.Gossiper, gossipPacket structs.Gos
   }
 }
 
-func sendPacket(gossiper *structs.Gossiper, gossipPacket structs.GossipPacket, addressOfReceiver string) {
+func sendPacket(gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, addressOfReceiver string) {
 
     udpAddr, err := net.ResolveUDPAddr("udp4", addressOfReceiver)
     if err != nil {
       fmt.Println("Error resolving udp addres: ", err)
     }
 
-    packetBytes, err := protobuf.Encode(&gossipPacket)
+    packetBytes, err := protobuf.Encode(gossipPacket)
     if err != nil {
       fmt.Println("Error encoding a simple message: ", err)
     }
@@ -55,7 +55,7 @@ func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *st
     rng := rand.New(seed)
     idx := rng.Intn(len(listOfPeers))
     chosenPeer := listOfPeers[idx]
-    sendPacket(gossiper, *gossipPacket, chosenPeer)
+    sendPacket(gossiper, gossipPacket, chosenPeer)
   }
 }
 
@@ -63,5 +63,5 @@ func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *st
 func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddress string) {
   statusPacket := structs.StatusPacket{Want: gossiper.Want}
   gossipPacket := structs.GossipPacket{Status: &statusPacket}
-  sendPacket(gossiper, gossipPacket, peerSenderAddress)
+  sendPacket(gossiper, &gossipPacket, peerSenderAddress)
 }
