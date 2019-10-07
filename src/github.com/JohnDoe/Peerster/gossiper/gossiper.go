@@ -53,7 +53,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       simpleMessage.Contents = clientMessage
       gossipPacket.Simple = &simpleMessage
       // Broadcast the client message to all known peers
-      broadcastGossipPacket(gossiper, &gossipPacket, "")
+      broadcastGossipPacket(gossiper, gossipPacket, "")
     } else {
       // If simple flag IS NOT on, create a RumorMessage from the user message
       rumorMessage := structs.RumorMessage{}
@@ -101,7 +101,7 @@ func HandlePeerMessages (gossiper *structs.Gossiper, simpleFlag bool) {
         helpers.WriteToStandardOutputWhenPeerSimpleMessageReceived(gossiper, &packet)
         // Change the RelayPeerAddr to the current gossiper node's address
         packet.Simple.RelayPeerAddr = gossiper.Address.String()
-        broadcastGossipPacket(gossiper, &packet, senderAddress)
+        broadcastGossipPacket(gossiper, packet, senderAddress)
       }
     } else {
       if packet.Rumor != nil {
