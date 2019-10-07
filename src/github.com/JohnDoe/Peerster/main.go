@@ -2,6 +2,7 @@ package main
 //import "strconv"
 import "sync"
 import "github.com/JohnDoe/Peerster/gossiper"
+import "github.com/JohnDoe/Peerster/structs"
 
 /*
   Gossiper program
@@ -20,7 +21,7 @@ var localhost = "127.0.0.1"
 func main() {
 
   flags := gossiper.HandleFlags();
-  gossiperNode := gossiper.NewGossiper(flags.GossipAddress, flags);
+  gossiperNode := structs.CreateNewGossiper(flags.GossipAddress, flags);
 
   defer gossiperNode.Conn.Close();
 

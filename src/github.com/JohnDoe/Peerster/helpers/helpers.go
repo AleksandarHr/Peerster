@@ -4,14 +4,6 @@ import "fmt"
 import "strings"
 import "github.com/JohnDoe/Peerster/structs"
 
-//FlagsInformation A struct to hold flags information
-type FlagsInformation struct {
-  UIPort        string
-  GossipAddress string
-  Name          string
-  Peers         string
-  Simple        bool
-}
 
 /*JoinMapKeys - a function which joins string map keys with comma */
 func JoinMapKeys (m map[string]bool) string {

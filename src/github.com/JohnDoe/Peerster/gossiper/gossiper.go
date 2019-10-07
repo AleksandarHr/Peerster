@@ -14,39 +14,6 @@ import "github.com/JohnDoe/Peerster/structs"
 var maxBufferSize = 1024
 var localhost = "127.0.0.1"
 
-/*NewGossiper - a function acting as a constructor for a the Gossiper struct, returns a pointer
-  - address, string - the address for the gossiper node in the form 'ip:port'
-  - flags, *FlagsInformation - a pointer to a FlagsInformation object
-*/
-func NewGossiper(address string, flags *helpers.FlagsInformation) *structs.Gossiper {
-  udpAddr, err := net.ResolveUDPAddr("udp4", address)
-  if err != nil {
-    fmt.Println("Error resolving udp addres: ", err)
-  }
-
-  udpConn, err := net.ListenUDP("udp4", udpAddr)
-  if err != nil {
-    fmt.Println("Error listening: ", err)
-  }
-
-  peers := make(map[string]bool)
-  for _, p := range (strings.Split(flags.Peers, ",")){
-    peers[p] = true
-  }
-
-  var knownMessages []structs.PeerStatus
-
-  fmt.Println("Gossiper is up and listening on ", address)
-
-  return &structs.Gossiper {
-    Address:  udpAddr,
-    Conn:     udpConn,
-    Name:     flags.Name,
-    Peers:    peers,
-    Want:     knownMessages,
-  }
-}
-
 /*HandleClientMessages - A function to handle messages coming from a client
     * gossiper *Gossiper - poitner to a gossiper
     * uiPort string - the uiPort of the current gossiper
@@ -268,7 +235,7 @@ func sendPacket(gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, 
 
 /*HandleFlags - A function to handle flags passed to the gossiper as described at the beginning of the file
 */
-func HandleFlags() (*helpers.FlagsInformation) {
+func HandleFlags() (*structs.FlagsInformation) {
   // Read all the flags
   var UIPortFlag = flag.String("UIPort", "8080", "port for the UI client")
   var gossipAddrFlag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
@@ -286,7 +253,7 @@ func HandleFlags() (*helpers.FlagsInformation) {
   peers := *peersFlag;
   simple := *simpleFlag;
 
-  flagsInfo := helpers.FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
+  flagsInfo := structs.FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
   return &flagsInfo
 }
 

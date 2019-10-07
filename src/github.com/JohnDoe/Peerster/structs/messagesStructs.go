@@ -40,3 +40,47 @@ type PeerStatus struct {
 type StatusPacket struct {
   Want []PeerStatus
 }
+
+/*SeenMessages - a struct to store messages that a gossiper has already seen
+  It is practically a map where:
+    * keys = origin names
+    * values = arrays of seen rumor messages from this origin
+*/
+type SeenMessages struct {
+  Messages map[string][]RumorMessage
+}
+
+
+// ==================================================================
+// ==================================================================
+//                            Constructors
+// ==================================================================
+// ==================================================================
+
+/*CreateNewSimpleMessage - a constructor for a simple message; returns a pointer to a SimpleMessage
+*/
+func CreateNewSimpleMessage(name string, relayAddress string, contents string) *SimpleMessage {
+  sm := &SimpleMessage{OriginalName: name, RelayPeerAddr: relayAddress, Contents: contents}
+  return sm
+}
+
+/*CreateNewRumorMessage - a constructor for a rumor message; returns a pointer to a RumorMessage
+*/
+func CreateNewRumorMessage(origin string, id uint32, text string) *RumorMessage {
+  rm := &RumorMessage{Origin: origin, ID: id, Text: text}
+  return rm
+}
+
+/*CreateNewPeerStatusMessage - a constructor for a peer status message; returns a pointer to a PeerStatus
+*/
+func CreateNewPeerStatusMessage(identifier string, nextID uint32) *PeerStatus {
+  ps := &PeerStatus{Identifier: identifier, NextID: nextID}
+  return ps
+}
+
+/*CreateSeenMessagesStruct - a constructor for a struct for seen rumor messages; returns a pointer to a SeenMessages
+*/
+func CreateSeenMessagesStruct() *SeenMessages{
+  msgs := &SeenMessages{Messages: make(map[string][]RumorMessage)}
+  return msgs
+}

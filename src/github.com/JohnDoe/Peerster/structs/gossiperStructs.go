@@ -1,6 +1,8 @@
 package structs
 
 import "net"
+import "fmt"
+import "strings"
 
 /*Gossiper - a struct containing
     * Address - the udp address of the gossiper node
@@ -13,6 +15,7 @@ type Gossiper struct {
   Name string
   Peers map[string]bool
   Want []PeerStatus
+  MyMessages *SeenMessages
 }
 
 /*GossipPacket - To provide compatibility with future versions, the ONLY packets sent to other peers
@@ -21,4 +24,55 @@ type GossipPacket struct {
   Simple  *SimpleMessage
   Rumor   *RumorMessage
   Status  *StatusPacket
+}
+
+//FlagsInformation A struct to hold flags information
+type FlagsInformation struct {
+  UIPort        string
+  GossipAddress string
+  Name          string
+  Peers         string
+  Simple        bool
+}
+
+// ==================================================================
+// ==================================================================
+//                            Constructors
+// ==================================================================
+// ==================================================================
+
+
+/*CreateNewGossiper - a function acting as a constructor for a the Gossiper struct, returns a pointer
+  - address, string - the address for the gossiper node in the form 'ip:port'
+  - flags, *FlagsInformation - a pointer to a FlagsInformation object
+*/
+func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
+  udpAddr, err := net.ResolveUDPAddr("udp4", address)
+  if err != nil {
+    fmt.Println("Error resolving udp addres: ", err)
+  }
+
+  udpConn, err := net.ListenUDP("udp4", udpAddr)
+  if err != nil {
+    fmt.Println("Error listening: ", err)
+  }
+
+  peers := make(map[string]bool)
+  for _, p := range (strings.Split(flags.Peers, ",")){
+    peers[p] = true
+  }
+
+  var status []PeerStatus
+  seenMessages := CreateSeenMessagesStruct()
+  gossiper := &Gossiper{
+    Address:    udpAddr,
+    Conn:       udpConn,
+    Name:       flags.Name,
+    Peers:      peers,
+    Want:       status,
+    MyMessages: seenMessages,
+  }
+
+  fmt.Println("Gossiper is up and listening on ", address)
+  return gossiper
 }
