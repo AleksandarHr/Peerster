@@ -143,6 +143,30 @@ func HandlePeerMessages (gossiper *structs.Gossiper, simpleFlag bool) {
   }
 }
 
+/*RumorMessagesGossiperNeeds - given a received status packet, compares it with the current gossiper's PeerStatus intformation
+      and returns an array of PeerStauts object of messages that the gossiper needs from the received status packet
+*/
+func rumorMessagesGossiperNeeds (gossiper *structs.Gossiper, receivedStatus *structs.StatusPacket) []structs.PeerStatus {
+  receivedMap := helpers.ConvertPeerStatusVectorClockToMap(receivedStatus.Want)
+  gossiperMap := helpers.ConvertPeerStatusVectorClockToMap(gossiper.Want)
+
+  var missingMessagesStatus []structs.PeerStatus
+
+  for k,receivedValue := range receivedMap {
+    if gossiperValue, ok := gossiperMap[k]; !ok {
+      status := structs.PeerStatus{Identifier: k, NextID: 1}
+      missingMessagesStatus = append(missingMessagesStatus, status)
+    } else {
+      if gossiperValue < receivedValue {
+        status := structs.PeerStatus{Identifier: k, NextID: gossiperValue + 1}
+        missingMessagesStatus = append(missingMessagesStatus, status)
+      }
+    }
+  }
+  return missingMessagesStatus
+}
+
+
 func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus *structs.StatusPacket) *structs.PeerStatus {
 
   gossiperStatusMap := helpers.ConvertPeerStatusVectorClockToMap(gossiper.Want)

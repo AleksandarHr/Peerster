@@ -57,6 +57,8 @@ func AlreadySeenMessage (gossiper *structs.Gossiper, rumor *structs.RumorMessage
   return alreadySeen
 }
 
+
+
 /*ConvertPeerStatusVectorClockToMap - convert vector clock to map */
 func ConvertPeerStatusVectorClockToMap (peerStatus []structs.PeerStatus) map[string]uint32{
 
