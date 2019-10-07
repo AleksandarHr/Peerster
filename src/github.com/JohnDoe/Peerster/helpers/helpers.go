@@ -1,9 +1,35 @@
 package helpers
 
+import "flag"
 import "fmt"
 import "strings"
 import "github.com/JohnDoe/Peerster/structs"
 
+var localhost = "127.0.0.1"
+
+/*HandleFlags - A function to handle flags passed to the gossiper as described at the beginning of the file
+*/
+func HandleFlags() (*structs.FlagsInformation) {
+  // Read all the flags
+  var UIPortFlag = flag.String("UIPort", "8080", "port for the UI client")
+  var gossipAddrFlag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
+  var nameFlag = flag.String("name", "new_node", "name of the gossiper")
+  var peersFlag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
+  var simpleFlag = flag.Bool("simple", true, "run gossiper in simple mode")
+
+  // Parse all flagse
+  flag.Parse()
+
+  // Save the flags information
+  port := *UIPortFlag;
+  gossipAddr := *gossipAddrFlag;
+  name := *nameFlag;
+  peers := *peersFlag;
+  simple := *simpleFlag;
+
+  flagsInfo := structs.FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
+  return &flagsInfo
+}
 
 /*JoinMapKeys - a function which joins string map keys with comma */
 func JoinMapKeys (m map[string]bool) string {
@@ -16,6 +42,19 @@ func JoinMapKeys (m map[string]bool) string {
   }
 
   return strings.Join(keys, ",")
+}
+
+/*AlreadySeenMessage - a function to check if a gossiper has already seen a certain message*/
+func AlreadySeenMessage (gossiper *structs.Gossiper, rumor *structs.RumorMessage) bool {
+  msgID := rumor.ID
+  msgOrigin := rumor.Origin
+  alreadySeen := false
+  for _, msg := range gossiper.Want {
+    if msg.Identifier == msgOrigin {
+      alreadySeen = (msgID < msg.NextID)
+    }
+  }
+  return alreadySeen
 }
 
 /*ConvertPeerStatusVectorClockToMap - convert vector clock to map */

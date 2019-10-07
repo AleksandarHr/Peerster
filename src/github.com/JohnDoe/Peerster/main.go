@@ -2,6 +2,7 @@ package main
 //import "strconv"
 import "sync"
 import "github.com/JohnDoe/Peerster/gossiper"
+import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/JohnDoe/Peerster/structs"
 
 /*
@@ -15,12 +16,10 @@ import "github.com/JohnDoe/Peerster/structs"
     - simple = a flag to enforce simple broadcast mode for compatibility
 */
 
-// When clients run locally, the gossiper listens for client on localhost
-var localhost = "127.0.0.1"
 
 func main() {
 
-  flags := gossiper.HandleFlags();
+  flags := helpers.HandleFlags();
   gossiperNode := structs.CreateNewGossiper(flags.GossipAddress, flags);
 
   defer gossiperNode.Conn.Close();

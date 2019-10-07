@@ -1,11 +1,7 @@
 package gossiper
 
-import "flag"
 import "net"
 import "fmt"
-import "strings"
-import "time"
-import "math/rand"
 import "github.com/dedis/protobuf"
 import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/JohnDoe/Peerster/structs"
@@ -75,18 +71,6 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
   }
 }
 
-func alreadySeenMessage (gossiper *structs.Gossiper, rumor *structs.RumorMessage) bool {
-  msgID := rumor.ID
-  msgOrigin := rumor.Origin
-  alreadySeen := false
-  for _, msg := range gossiper.Want {
-    if msg.Identifier == msgOrigin {
-      alreadySeen = (msgID < msg.NextID)
-    }
-  }
-  return alreadySeen
-}
-
 /*HandlePeerMessages - a function to handle messages coming from a client
     * gossiper *Gossiper - poitner to a gossiper
 */
@@ -124,7 +108,7 @@ func HandlePeerMessages (gossiper *structs.Gossiper, simpleFlag bool) {
         // Handle a RumorMessage from a peer
         rumor := packet.Rumor
         // if message has been previously received, disregard it
-        messageSeen := alreadySeenMessage(gossiper, rumor)
+        messageSeen := helpers.AlreadySeenMessage(gossiper, rumor)
         if !messageSeen {
           //currentRummor = *rumor
           // if message is new, write to standard output
@@ -185,47 +169,6 @@ func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus
   return returnStatus
 }
 
-func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddress string) {
-
-  statusPacket := structs.StatusPacket{Want: gossiper.Want}
-  gossipPacket := structs.GossipPacket{Status: &statusPacket}
-  sendPacket(gossiper, &gossipPacket, peerSenderAddress)
-}
-
-func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) {
-
-  if gossipPacket.Rumor == nil {
-    fmt.Println("Trying to send a null RumorMessage")
-    return
-  }
-
-  knownPeers := helpers.JoinMapKeys(gossiper.Peers)
-  if (len(knownPeers) != 0) {
-    listOfPeers := strings.Split(knownPeers, ",")
-    // pick a random peer to send the message to
-    seed := rand.NewSource(time.Now().UnixNano())
-    rng := rand.New(seed)
-    idx := rng.Intn(len(listOfPeers))
-    chosenPeer := listOfPeers[idx]
-    sendPacket(gossiper, gossipPacket, chosenPeer)
-  }
-}
-
-func sendPacket(gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, addressOfReceiver string) {
-
-    udpAddr, err := net.ResolveUDPAddr("udp4", addressOfReceiver)
-    if err != nil {
-      fmt.Println("Error resolving udp addres: ", err)
-    }
-
-    packetBytes, err := protobuf.Encode(&gossipPacket)
-    if err != nil {
-      fmt.Println("Error encoding a simple message: ", err)
-    }
-
-    gossiper.Conn.WriteToUDP(packetBytes, udpAddr)
-}
-
 
 // =======================================================================================
 // =======================================================================================
@@ -233,29 +176,6 @@ func sendPacket(gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, 
 // =======================================================================================
 // =======================================================================================
 
-/*HandleFlags - A function to handle flags passed to the gossiper as described at the beginning of the file
-*/
-func HandleFlags() (*structs.FlagsInformation) {
-  // Read all the flags
-  var UIPortFlag = flag.String("UIPort", "8080", "port for the UI client")
-  var gossipAddrFlag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
-  var nameFlag = flag.String("name", "new_node", "name of the gossiper")
-  var peersFlag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
-  var simpleFlag = flag.Bool("simple", true, "run gossiper in simple mode")
-
-  // Parse all flagse
-  flag.Parse()
-
-  // Save the flags information
-  port := *UIPortFlag;
-  gossipAddr := *gossipAddrFlag;
-  name := *nameFlag;
-  peers := *peersFlag;
-  simple := *simpleFlag;
-
-  flagsInfo := structs.FlagsInformation{UIPort : port, GossipAddress : gossipAddr, Name : name, Peers : peers, Simple : simple}
-  return &flagsInfo
-}
 
 
 func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus) {
@@ -270,20 +190,4 @@ func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus
   if !alreadyExisted {
     gossiper.Want = append(gossiper.Want, *status)
   }
-}
-
-
-// Function to simply broadcast a newly received message (client or peer) to all known peers
-func broadcastGossipPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) {
-    knownPeers := helpers.JoinMapKeys(gossiper.Peers)
-
-    if (len(knownPeers) != 0) {
-      listOfPeers := strings.Split(knownPeers, ",")
-
-      for _, peer := range listOfPeers {
-        if peer != peerSenderAddress {
-          sendPacket(gossiper, gossipPacket, peer)
-        }
-      }
-    }
 }
