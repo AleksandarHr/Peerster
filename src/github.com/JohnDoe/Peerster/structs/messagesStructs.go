@@ -1,5 +1,7 @@
 package structs
 
+import "sync"
+
 /*SimpleMessage - to begin with, we will send containing the following:
    - OriginalName = original sender's name
    - RelayPeerAddr = relay peer's address in the form 'ip:port'
@@ -48,6 +50,7 @@ type StatusPacket struct {
 */
 type SeenMessages struct {
   Messages map[string][]RumorMessage
+  Lck sync.Mutex
 }
 
 
@@ -71,9 +74,9 @@ func CreateNewRumorMessage(origin string, id uint32, text string) *RumorMessage 
   return rm
 }
 
-/*CreateNewPeerStatusMessage - a constructor for a peer status message; returns a pointer to a PeerStatus
+/*CreateNewPeerStatusPair - a constructor for a peer status message; returns a pointer to a PeerStatus
 */
-func CreateNewPeerStatusMessage(identifier string, nextID uint32) *PeerStatus {
+func CreateNewPeerStatusPair(identifier string, nextID uint32) *PeerStatus {
   ps := &PeerStatus{Identifier: identifier, NextID: nextID}
   return ps
 }
