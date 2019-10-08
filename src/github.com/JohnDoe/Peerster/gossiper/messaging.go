@@ -40,11 +40,13 @@ func sendPacket(gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, 
     gossiper.Conn.WriteToUDP(packetBytes, udpAddr)
 }
 
-func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) {
+func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) string {
+
+  chosenPeer := ""
 
   if gossipPacket.Rumor == nil {
     fmt.Println("Trying to send a null RumorMessage")
-    return
+    return chosenPeer
   }
 
   knownPeers := helpers.JoinMapKeys(gossiper.Peers)
@@ -54,9 +56,10 @@ func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *st
     seed := rand.NewSource(time.Now().UnixNano())
     rng := rand.New(seed)
     idx := rng.Intn(len(listOfPeers))
-    chosenPeer := listOfPeers[idx]
+    chosenPeer = listOfPeers[idx]
     sendPacket(gossiper, gossipPacket, chosenPeer)
   }
+  return chosenPeer
 }
 
 

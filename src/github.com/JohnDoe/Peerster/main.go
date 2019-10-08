@@ -35,7 +35,7 @@ func main() {
   wg.Add(1)
   go func() {
     defer wg.Done()
-    gossiper.HandlePeerMessages(gossiperNode, flags.Simple)
+    gossiper.HandleGossipPackets(gossiperNode, flags.Simple, gossiperNode.PacketChanel)
   }()
   wg.Wait()
 }

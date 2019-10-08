@@ -45,14 +45,14 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
     // Write received client message to standard output
     clientMessage := string(clientBuffer[0:numBytes])
     helpers.WriteToStandardOutputWhenClientMessageReceived(gossiper, clientMessage)
-    gossipPacket := structs.GossipPacket{}
+    gossipPacket := &structs.GossipPacket{}
 
     if simpleFlag {
       // If the simple flag IS on, create a SimpleMessage from the user message
       simpleMessage := structs.CreateNewSimpleMessage(gossiper.Name, gossiper.Address.String(), clientMessage)
       gossipPacket.Simple = simpleMessage
       // Broadcast the client message to all known peers
-      broadcastGossipPacket(gossiper, &gossipPacket, "")
+      broadcastGossipPacket(gossiper, gossipPacket, "")
     } else {
       // If simple flag IS NOT on, create a RumorMessage from the user message
       rumorMessage := structs.CreateNewRumorMessage(gossiper.Name, uint32(1), clientMessage)
@@ -61,89 +61,72 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       // DO I HAVE TO CHECK FOR SPAM (this gossiper receiving the same TEXT from a client)?
       peerStatus := structs.CreateNewPeerStatusPair(gossiper.Name, uint32(rumorMessage.ID + 1))
       updatePeerStatusList(gossiper, peerStatus)
-
       // ADD new rumor message to SEEN MESSAGES
       updateSeenMessages(gossiper, rumorMessage)
 
       // BEGIN RUMORMONGERING in a go routine
-      // go initiateRumorMongering(gossiper, packet)
+      go initiateRumorMongering(gossiper, gossipPacket)
     }
   }
 }
 
+/*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
+func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddress) {
+
+  go func(msgChannel chan structs.PacketAndAddress) {
+    // 1) open a go routine to with a channel aceepting packets, which will call the appropriate handling function
+    for{
+      select {
+      case receivedPacketAndSenderAddr := <- msgChannel:
+
+        receivedPacket := receivedPacketAndSenderAddr.Packet
+        senderAddr := receivedPacketAndSenderAddr.SenderAddr
+
+        if simpleFlag {
+          if (receivedPacket.Simple != nil) {
+            handleIncomingSimplePacket(gossiper, receivedPacket, senderAddr)
+          }
+        } else if receivedPacket.Rumor != nil {
+          handleIncomingRumorPacket(gossiper, receivedPacket, senderAddr)
+        } else if receivedPacket.Status != nil {
+          handleIncomingStatusPacket(gossiper, receivedPacket, senderAddr)
+        }
+      }
+    }
+  }(incomingPacketsChannel)
+
+  go func(msgChanel chan structs.PacketAndAddress) {
+  // 2) open a go routine for the infinite loop of accepting incoming messages
+    peerBuffer := make([]byte, maxBufferSize)
+    for {
+      numBytes, addr, errRead := gossiper.Conn.ReadFromUDP(peerBuffer)
+      if errRead != nil {
+        fmt.Println("Error reading from a peer message from UDP: ", errRead)
+      }
+      packet := structs.GossipPacket{}
+      errDecode := protobuf.Decode(peerBuffer[:numBytes], &packet)
+      if errDecode != nil {
+        fmt.Println("Error decoding message: ", errDecode)
+      }
+
+      // HOW TO SEND THE SENDER ADDRESS STRING??
+      senderAddr := addr.String()
+
+      // 3) whenever a new message arrives in routine2, send it via channel to routine1 which will handle it
+      msgChanel <- structs.PacketAndAddress{Packet: &packet, SenderAddr: senderAddr}
+    }
+  }(incomingPacketsChannel)
+}
 
 
-/*HandlePeerMessages - a function to handle messages coming from a client
-    * gossiper *Gossiper - poitner to a gossiper
-*/
-// func HandlePeerMessages (gossiper *structs.Gossiper, simpleFlag bool) {
-//   // Goroutine (thread) to handle incoming messages from other gossipers
-//   peerBuffer := make([]byte, maxBufferSize)
-//   for {
-//     numBytes, addr, errRead := gossiper.Conn.ReadFromUDP(peerBuffer)
-//     if errRead != nil {
-//       fmt.Println("Error reading from a peer message from UDP: ", errRead)
-//     }
-//     packet := structs.GossipPacket{}
-//     errDecode := protobuf.Decode(peerBuffer[:numBytes], &packet)
-//     if errDecode != nil {
-//       fmt.Println("Error decoding message: ", errDecode)
-//     }
-//
-//     senderAddress := addr.String()
-//     //currentRummor := structs.RumorMessage{}
-//
-//     if simpleFlag {
-//       if packet.Simple != nil {
-//         // Handle a SimpleMessage from a peer
-//         senderAddress = packet.Simple.RelayPeerAddr
-//         // Store the RelayPeerAddr in the map of known peers
-//         gossiper.Peers[senderAddress] = true
-//         // Write received peer message to standard output
-//         helpers.WriteToStandardOutputWhenPeerSimpleMessageReceived(gossiper, &packet)
-//         // Change the RelayPeerAddr to the current gossiper node's address
-//         packet.Simple.RelayPeerAddr = gossiper.Address.String()
-//         broadcastGossipPacket(gossiper, &packet, senderAddress)
-//       }
-//     } else {
-//       if packet.Rumor != nil {
-//         // Handle a RumorMessage from a peer
-//         rumor := packet.Rumor
-//         // if message has been previously received, disregard it
-//         messageSeen := helpers.AlreadySeenMessage(gossiper, rumor)
-//         if !messageSeen {
-//           //currentRummor = *rumor
-//           // if message is new, write to standard output
-//           helpers.WriteToStandardOutputWhenRumorMessageReceived(gossiper, &packet, senderAddress)
-//
-//           // update current gossiper's PeerStatus structure
-//           peerStatus := structs.PeerStatus{Identifier: rumor.Origin, NextID : uint32(rumor.ID + 1)}
-//           updatePeerStatusList(gossiper, &peerStatus)
-//           updateSeenMessages(gossiper, rumor)
-//           // send a status packet back to the sender to acknowledge receiving the rumor message
-//           sendAcknowledgementStatusPacket(gossiper, senderAddress)
-//
-//           // choose a random known peer and send them the packet
-//           chooseRandomPeerAndSendPacket(gossiper, &packet, senderAddress)
-//           // IMPLEMENT TIMEOUT FOR THE STATUS PACKET
-//         }
-//       } else if packet.Status != nil {
-//         receivedStatus := packet.Status
-//         // Handle a StatusMessage from a peer
-//         // compare gossiper's PeerStatus with the received StatusPacket
-//         potentialNextMessageToSend := getNextRumorToSendIfSenderHasOne(gossiper, receivedStatus)
-//         if potentialNextMessageToSend != nil {
-//           // sender peer S has other messages that the receiver peer R does not, send the 'first such message'
-//         } else {
-//           // sender peer S has no other messages that the receiver peer R does not, but the receiver peer R
-//           //    has messages that the sender peer S does not. sender peer S sends a StatusPacket to receiver peer R
-//           sendAcknowledgementStatusPacket(gossiper, senderAddress)
-//         }
-//         chooseRandomPeerAndSendPacket(gossiper, &packet, senderAddress)
-//       }
-//     }
-//   }
-// }
+func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
+  // chosenPeer := chooseRandomPeerAndSendPacket (gossiper, packet , gossiper.Address.String())
+}
+
+
+//====================================================================================================
+//====================================================================================================
+//====================================================================================================
 
 func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMessage) {
 
@@ -151,8 +134,7 @@ func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMess
   defer gossiper.MyMessages.Lck.Unlock()
 
   origin := newRumor.Origin
-  var currentMessages []structs.RumorMessage
-  currentMessages = gossiper.MyMessages.Messages[origin]
+  currentMessages := gossiper.MyMessages.Messages[origin]
   currentMessages = append(currentMessages, *newRumor)
   gossiper.MyMessages.Messages[origin] = currentMessages
 }
@@ -208,7 +190,7 @@ func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus
 
 // Code written based on the example in 'golang.org/pkg/time'
 func mongeringTimeout () {
-  ticket := time.NewTicker(time.Second)
+  ticker := time.NewTicker(time.Second)
   defer ticker.Stop()
   // SUBSTITUTE THIS WITH A CHANNEL WHERE THE GOSSIPER RECEIVES MESSAGES
   gossiperChannel := make(chan bool)
@@ -216,17 +198,18 @@ func mongeringTimeout () {
     time.Sleep(10 * time.Second)
     gossiperChannel <- true
   }()
-  for {
-    select{
-    case status <- gossiperChannel:
-      // if a status packet is received through the gossiper's channel
-      // do as needed
-      fmt.Println("HANDLE STATUS PACKET")
-      // Restart timer
-      ticker = ticker.NewTicker(time.Second)
-    case t := <-ticker.C:
-      fmt.Println("Current rumor mongering timed out.")
-      fmt.Println("Pick another peer to start rumor mongering with.")
-    }
-  }
+  // for {
+  //   select{
+  //   case status := <- gossiperChannel:
+  //     // if a status packet is received through the gossiper's channel
+  //     // do as neededs
+  //     fmt.Println("HANDLE STATUS PACKET")
+  //     // Restart timer
+  //     ticker = time.NewTicker(time.Second)
+  //   case t := <-ticker.C:
+  //     fmt.Println("Current rumor mongering timed out.")
+  //     fmt.Println("Pick another peer to start rumor mongering with.")
+  //     // RANDOMLY PICK A
+  //   }
+  // }
 }

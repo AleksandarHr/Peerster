@@ -53,6 +53,12 @@ type SeenMessages struct {
   Lck sync.Mutex
 }
 
+/*PacketAndAddress - a struct */
+type PacketAndAddress struct {
+  Packet *GossipPacket
+  SenderAddr string
+}
+
 
 // ==================================================================
 // ==================================================================

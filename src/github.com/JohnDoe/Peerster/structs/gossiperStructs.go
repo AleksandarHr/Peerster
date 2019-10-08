@@ -16,6 +16,7 @@ type Gossiper struct {
   Peers map[string]bool
   Want []PeerStatus
   MyMessages *SeenMessages
+  PacketChanel chan PacketAndAddress
 }
 
 /*GossipPacket - To provide compatibility with future versions, the ONLY packets sent to other peers
@@ -64,6 +65,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
 
   var status []PeerStatus
   seenMessages := CreateSeenMessagesStruct()
+  ch := make(chan PacketAndAddress)
   gossiper := &Gossiper{
     Address:    udpAddr,
     Conn:       udpConn,
@@ -71,6 +73,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
     Peers:      peers,
     Want:       status,
     MyMessages: seenMessages,
+    PacketChanel: ch,
   }
 
   fmt.Println("Gossiper is up and listening on ", address)
