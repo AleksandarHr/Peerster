@@ -59,6 +59,11 @@ type PacketAndAddress struct {
   SenderAddr string
 }
 
+/*AddRemoveChanelFromMap - a struct */
+type AddRemoveChanelFromMap struct {
+  MapCh chan string
+  Add bool
+}
 
 // ==================================================================
 // ==================================================================

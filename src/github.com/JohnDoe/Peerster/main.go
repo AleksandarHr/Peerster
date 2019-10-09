@@ -21,12 +21,10 @@ func main() {
 
   flags := helpers.HandleFlags();
   gossiperNode := structs.CreateNewGossiper(flags.GossipAddress, flags);
-
   defer gossiperNode.Conn.Close();
 
   var wg = &sync.WaitGroup{}
   wg.Add(1)
-
   go func() {
     defer wg.Done()
     gossiper.HandleClientMessages(gossiperNode, flags.UIPort, flags.Simple)
@@ -37,5 +35,13 @@ func main() {
     defer wg.Done()
     gossiper.HandleGossipPackets(gossiperNode, flags.Simple, gossiperNode.PacketChanel)
   }()
+
+  wg.Add(1)
+  go func() {
+    defer wg.Done()
+    gossiper.HandleChanelMap(gossiperNode, gossiperNode.MapHandler)
+  }()
+
   wg.Wait()
+
 }

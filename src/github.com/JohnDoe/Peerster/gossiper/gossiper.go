@@ -11,6 +11,19 @@ import "github.com/JohnDoe/Peerster/structs"
 var maxBufferSize = 1024
 var localhost = "127.0.0.1"
 
+/*HandleChanelMap - a function to keep the [addres -> chanel] map up to date
+*/
+func HandleChanelMap(gossiper *structs.Gossiper, mapCh chan string) {
+  for {
+    select {
+    case addressToAdd := <- mapCh:
+      if _, ok := gossiper.MapOfChanels[addressToAdd]; !ok {
+        newChanel := make(chan structs.PacketAndAddress)
+        gossiper.MapOfChanels[addressToAdd] = newChanel
+      }
+    }
+  }
+}
 
 /*HandleClientMessages - A function to handle messages coming from a client
     * gossiper *Gossiper - poitner to a gossiper
@@ -48,7 +61,6 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
     gossipPacket := &structs.GossipPacket{}
 
     if simpleFlag {
-
       // If the simple flag IS on, create a SimpleMessage from the user message
       simpleMessage := structs.CreateNewSimpleMessage(gossiper.Name, gossiper.Address.String(), clientMessage)
       gossipPacket.Simple = simpleMessage
@@ -71,6 +83,27 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
   }
 }
 
+
+func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
+  // Choose random peer to send the rumor message to and add to the map of chanels
+  chosenPeer := chooseRandomPeerAndSendPacket (gossiper, packet , gossiper.Address.String())
+  fmt.Println("Initiating rumor mongering with peer: ", chosenPeer)
+  gossiper.MapHandler <- chosenPeer
+
+  // ??? how to make sure the map of chanels has been updated and the new chanel has been created on time ???
+  rumor := packet.Rumor
+  addr := gossiper.Address.String()
+  fmt.Println("Rumor text = ", rumor.Text)
+  if rumor != nil {
+    packetAndAddress := structs.PacketAndAddress{Packet: packet, SenderAddr: addr}
+    // send the rumor message to the randomly chosen peer through the corresponding chanel
+    fmt.Println("SENDING A PACKET TO THE CHANEL")
+    gossiper.MapOfChanels[chosenPeer] <- packetAndAddress
+  }
+}
+
+
+
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
 func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddress) {
 
@@ -81,9 +114,9 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
     for{
       select {
       case receivedPacketAndSenderAddr := <- msgChannel:
-
         receivedPacket := receivedPacketAndSenderAddr.Packet
         senderAddr := receivedPacketAndSenderAddr.SenderAddr
+        fmt.Println("Gossiper ", gossiper.Address.String(), " received a message from node ", senderAddr)
 
         // if the simple flag is on, only handle simple packets and disregard any others
         if simpleFlag {
@@ -91,6 +124,7 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
             handleIncomingSimplePacket(gossiper, receivedPacket, senderAddr)
           }
         } else if receivedPacket.Rumor != nil {
+          fmt.Println("It is a rumor packet")
           handleIncomingRumorPacket(gossiper, receivedPacket, senderAddr)
         } else if receivedPacket.Status != nil {
           handleIncomingStatusPacket(gossiper, receivedPacket, senderAddr)
@@ -123,14 +157,12 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
 }
 
 
-func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
-  // chosenPeer := chooseRandomPeerAndSendPacket (gossiper, packet , gossiper.Address.String())
-}
 
-
-//====================================================================================================
-//====================================================================================================
-//====================================================================================================
+// =======================================================================================
+// =======================================================================================
+//                                Helper Functions
+// =======================================================================================
+// =======================================================================================
 
 func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMessage) {
 
@@ -165,17 +197,8 @@ func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus
       }
     }
   }
-
   return returnStatus
 }
-
-
-// =======================================================================================
-// =======================================================================================
-//                                Helper Functions
-// =======================================================================================
-// =======================================================================================
-
 
 
 func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus) {
