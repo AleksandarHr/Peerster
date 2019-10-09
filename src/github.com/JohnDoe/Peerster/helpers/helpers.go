@@ -15,7 +15,7 @@ func HandleFlags() (*structs.FlagsInformation) {
   var gossipAddrFlag = flag.String("gossipAddr", localhost + ":" + "5000", "ip:port for the gossiper")
   var nameFlag = flag.String("name", "new_node", "name of the gossiper")
   var peersFlag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
-  var simpleFlag = flag.Bool("simple", true, "run gossiper in simple mode")
+  var simpleFlag = flag.Bool("simple", false, "run gossiper in simple mode")
 
   // Parse all flagse
   flag.Parse()

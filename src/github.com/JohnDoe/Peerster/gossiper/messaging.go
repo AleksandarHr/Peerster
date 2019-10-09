@@ -12,8 +12,8 @@ import "github.com/dedis/protobuf"
 
 // Function to simply broadcast a newly received message (client or peer) to all known peers
 func broadcastGossipPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) {
-    knownPeers := helpers.JoinMapKeys(gossiper.Peers)
 
+    knownPeers := helpers.JoinMapKeys(gossiper.Peers)
     if (len(knownPeers) != 0) {
       listOfPeers := strings.Split(knownPeers, ",")
 

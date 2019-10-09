@@ -48,6 +48,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
     gossipPacket := &structs.GossipPacket{}
 
     if simpleFlag {
+
       // If the simple flag IS on, create a SimpleMessage from the user message
       simpleMessage := structs.CreateNewSimpleMessage(gossiper.Name, gossiper.Address.String(), clientMessage)
       gossipPacket.Simple = simpleMessage
@@ -73,8 +74,10 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
 func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddress) {
 
+  // 1) open a go routine to with a channel aceepting packets, which will call the appropriate handling function
+  // a go routine which loops forever, accepts incoming packets, and distributes them
+  //    to helper functions depending on their type (simple, rumor, status)
   go func(msgChannel chan structs.PacketAndAddress) {
-    // 1) open a go routine to with a channel aceepting packets, which will call the appropriate handling function
     for{
       select {
       case receivedPacketAndSenderAddr := <- msgChannel:
@@ -82,6 +85,7 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
         receivedPacket := receivedPacketAndSenderAddr.Packet
         senderAddr := receivedPacketAndSenderAddr.SenderAddr
 
+        // if the simple flag is on, only handle simple packets and disregard any others
         if simpleFlag {
           if (receivedPacket.Simple != nil) {
             handleIncomingSimplePacket(gossiper, receivedPacket, senderAddr)
@@ -95,8 +99,10 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
     }
   }(incomingPacketsChannel)
 
-  go func(msgChanel chan structs.PacketAndAddress) {
   // 2) open a go routine for the infinite loop of accepting incoming messages
+  // a go routine which loops forever, reads incoming messages and sends them to
+  // the previous go routine to be handled accordingly
+  go func(msgChanel chan structs.PacketAndAddress) {
     peerBuffer := make([]byte, maxBufferSize)
     for {
       numBytes, addr, errRead := gossiper.Conn.ReadFromUDP(peerBuffer)
@@ -109,10 +115,8 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
         fmt.Println("Error decoding message: ", errDecode)
       }
 
-      // HOW TO SEND THE SENDER ADDRESS STRING??
-      senderAddr := addr.String()
-
       // 3) whenever a new message arrives in routine2, send it via channel to routine1 which will handle it
+      senderAddr := addr.String()
       msgChanel <- structs.PacketAndAddress{Packet: &packet, SenderAddr: senderAddr}
     }
   }(incomingPacketsChannel)
