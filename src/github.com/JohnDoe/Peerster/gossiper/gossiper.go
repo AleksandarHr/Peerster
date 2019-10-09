@@ -7,7 +7,6 @@ import "github.com/dedis/protobuf"
 import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/JohnDoe/Peerster/structs"
 
-
 var maxBufferSize = 1024
 var localhost = "127.0.0.1"
 
@@ -87,17 +86,20 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
 func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
   // Choose random peer to send the rumor message to and add to the map of chanels
   chosenPeer := chooseRandomPeerAndSendPacket (gossiper, packet , gossiper.Address.String())
+  if chosenPeer == "" {
+    fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
+    return
+  }
+
   fmt.Println("Initiating rumor mongering with peer: ", chosenPeer)
   gossiper.MapHandler <- chosenPeer
 
   // ??? how to make sure the map of chanels has been updated and the new chanel has been created on time ???
   rumor := packet.Rumor
   addr := gossiper.Address.String()
-  fmt.Println("Rumor text = ", rumor.Text)
   if rumor != nil {
     packetAndAddress := structs.PacketAndAddress{Packet: packet, SenderAddr: addr}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
-    fmt.Println("SENDING A PACKET TO THE CHANEL")
     gossiper.MapOfChanels[chosenPeer] <- packetAndAddress
   }
 }
@@ -117,6 +119,9 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
         receivedPacket := receivedPacketAndSenderAddr.Packet
         senderAddr := receivedPacketAndSenderAddr.SenderAddr
         fmt.Println("Gossiper ", gossiper.Address.String(), " received a message from node ", senderAddr)
+
+        // Add to KnownPeers
+        gossiper.Peers[senderAddr] = true
 
         // if the simple flag is on, only handle simple packets and disregard any others
         if simpleFlag {
@@ -203,7 +208,7 @@ func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus
 
 func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus) {
   alreadyExisted := false
-  // Iterate over the vector lock - if an entry with the same origin exists, substitute with the new status
+  // Iterate over the vector clock - if an entry with the same origin exists, substitute with the new status
   for i := 0; i < len(gossiper.Want); i++ {
     if gossiper.Want[i].Identifier == status.Identifier {
       gossiper.Want[i] = *status

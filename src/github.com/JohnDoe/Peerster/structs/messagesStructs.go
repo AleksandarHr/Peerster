@@ -98,3 +98,10 @@ func CreateSeenMessagesStruct() *SeenMessages{
   msgs := &SeenMessages{Messages: make(map[string][]RumorMessage)}
   return msgs
 }
+
+/*CreateNewStatusPacket - a constructor for a status packet; returns a pointer to a StatusPacket
+*/
+func CreateNewStatusPacket(peerStatusSlice []PeerStatus) *StatusPacket {
+  sp := &StatusPacket{Want: peerStatusSlice}
+  return sp
+}
