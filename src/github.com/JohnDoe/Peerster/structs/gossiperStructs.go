@@ -19,6 +19,7 @@ type Gossiper struct {
   PacketChanel chan PacketAndAddress
   MapOfChanels map[string]chan PacketAndAddress
   MapHandler chan string
+  CurrentMessageID uint32
 }
 
 /*GossipPacket - To provide compatibility with future versions, the ONLY packets sent to other peers
@@ -81,6 +82,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
     PacketChanel: packetChanel,
     MapOfChanels: chanelMap,
     MapHandler:   mapHandler,
+    CurrentMessageID: 1,
   }
 
   fmt.Println("Gossiper is up and listening on ", address)

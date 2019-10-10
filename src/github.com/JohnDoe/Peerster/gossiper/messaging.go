@@ -26,7 +26,7 @@ func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *st
     rng := rand.New(seed)
     idx := rng.Intn(len(listOfPeers))
     chosenPeer = listOfPeers[idx]
-    sendPacket(gossiper, gossipPacket, chosenPeer)
+    // sendPacket(gossiper, gossipPacket, chosenPeer)
   }
   return chosenPeer
 }
