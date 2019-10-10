@@ -122,16 +122,17 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
 
         // Add to KnownPeers
         gossiper.Peers[senderAddr] = true
-
         // if the simple flag is on, only handle simple packets and disregard any others
         if simpleFlag {
           if (receivedPacket.Simple != nil) {
+            fmt.Println("It is a simple message")
             handleIncomingSimplePacket(gossiper, receivedPacket, senderAddr)
           }
         } else if receivedPacket.Rumor != nil {
           fmt.Println("It is a rumor packet")
           handleIncomingRumorPacket(gossiper, receivedPacket, senderAddr)
         } else if receivedPacket.Status != nil {
+          fmt.Println("It is a status packet")
           handleIncomingStatusPacket(gossiper, receivedPacket, senderAddr)
         }
       }
@@ -154,6 +155,12 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
         fmt.Println("Error decoding message: ", errDecode)
       }
 
+      fmt.Println("A new packet has been received")
+      if packet.Rumor != nil {
+        fmt.Println("ITS A RUMOR")
+      } else if packet.Status != nil {
+        fmt.Println("ITS A STATUS")
+      }
       // 3) whenever a new message arrives in routine2, send it via channel to routine1 which will handle it
       senderAddr := addr.String()
       msgChanel <- structs.PacketAndAddress{Packet: &packet, SenderAddr: senderAddr}

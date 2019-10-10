@@ -38,9 +38,9 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
   fmt.Println("Preparing status packet")
   status := structs.CreateNewStatusPacket(gossiper.Want)
   statusPacket := structs.GossipPacket{Status: status}
-  packetAndAddress := structs.PacketAndAddress{Packet: &statusPacket, SenderAddr: gossiper.Address.String()}
+  // packetAndAddress := structs.PacketAndAddress{Packet: &statusPacket, SenderAddr: gossiper.Address.String()}
   // send the rumor message to the randomly chosen peer through the corresponding chanel
-  gossiper.MapOfChanels[senderAddr] <- packetAndAddress
+  sendPacket(gossiper, &statusPacket, senderAddr)
 }
 
 func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.GossipPacket, senderAddr string) {
