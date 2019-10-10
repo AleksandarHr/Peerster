@@ -33,11 +33,11 @@ func handleCommunicationOnNewChanel (gossiper *structs.Gossiper, newAddress stri
       fmt.Println("Received a packet on the chanel")
       // current node is RECEIVING a packet from addressToAdd
       if packet.SenderAddr == gossiper.Address.String() {
-        fmt.Println("RECEIVING")
+        fmt.Println("SENDING")
         sendPacket(gossiper, packet.Packet, newAddress)
       } else {
         // current node is SENDING a packet to addressToAdd
-        fmt.Println("SENDING")
+        fmt.Println("RECEIVING")
         gossiper.PacketChanel <- packet
       }
     }
@@ -98,7 +98,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       updateSeenMessages(gossiper, rumorMessage)
 
       // BEGIN RUMORMONGERING in a go routine
-      go initiateRumorMongering(gossiper, gossipPacket)
+      initiateRumorMongering(gossiper, gossipPacket)
     }
   }
 }
@@ -106,29 +106,61 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
 
 func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
   // Choose random peer to send the rumor message to and add to the map of chanels
-  chosenPeer := chooseRandomPeerAndSendPacket (gossiper, packet , gossiper.Address.String())
+  chosenPeer := chooseRandomPeerAndSendPacket(gossiper, packet , gossiper.Address.String())
   if chosenPeer == "" {
     fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
     return
   }
 
-  fmt.Println("Initiating rumor mongering with peer: ", chosenPeer)
   gossiper.MapHandler <- chosenPeer
+  fmt.Println("Initiating rumor mongering with peer: ", chosenPeer)
   time.Sleep(2*time.Second)
-  // ??? how to make sure the map of chanels has been updated and the new chanel has been created on time ???
-  rumor := packet.Rumor
-  addr := gossiper.Address.String()
-  fmt.Println("GOING TO CHECK IF RUMOR IS NIL")
-  if rumor != nil {
-    packetAndAddress := structs.PacketAndAddress{Packet: packet, SenderAddr: addr}
-    fmt.Println("SENDING THE PACKET TO THE CHANEL")
-    // send the rumor message to the randomly chosen peer through the corresponding chanel
-    gossiper.MapOfChanels[chosenPeer] <- packetAndAddress
-    // mongeringTimeout(gossiper, chosenPeer)
-  }
+
+  go sendPacketAndWaitForStatus(gossiper, packet, chosenPeer)
 }
 
 
+func sendPacketAndWaitForStatus (gossiper *structs.Gossiper, packet *structs.GossipPacket, receiverAddr string) {
+  rumor := packet.Rumor
+  addr := gossiper.Address.String()
+  if rumor != nil {
+    packetAndAddress := structs.PacketAndAddress{Packet: packet, SenderAddr: addr}
+    // send the rumor message to the randomly chosen peer through the corresponding chanel
+    gossiper.MapOfChanels[receiverAddr] <- packetAndAddress
+    go mongeringTimeout(gossiper, receiverAddr,packet)
+  }
+}
+
+// Code written based on the example in 'golang.org/pkg/time'
+func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *structs.GossipPacket) {
+    fmt.Println("TIMEOUT CODE FOLLOWS")
+    // TIMEOUT
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+    // SUBSTITUTE THIS WITH A CHANNEL WHERE THE GOSSIPER RECEIVES MESSAGES
+    timeoutChanel := make(chan bool)
+    go func() {
+      time.Sleep(5 * time.Second)
+      timeoutChanel <- true
+    }()
+    for {
+      fmt.Println("Waiting for a message from peer ", chosenPeer)
+      fmt.Println("CURRENT GOSSIPER HAS SEEN ", len(gossiper.MyMessages.Messages[gossiper.Name]), " MESSAGES")
+      select{
+      case status := <- gossiper.MapOfChanels[chosenPeer]:
+        // if a status packet is received through the gossiper's channel
+        // do as needed
+        fmt.Println("HANDLE STATUS PACKET from node ", status.SenderAddr)
+        // Restart timer
+        ticker = time.NewTicker(time.Second)
+      case t := <- timeoutChanel:
+        fmt.Println("Current rumor mongering timed out.", t)
+        fmt.Println("Pick another peer to start rumor mongering with.")
+        // RANDOMLY PICK A
+        initiateRumorMongering(gossiper, packet)
+      }
+    }
+}
 
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
 func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddress) {
@@ -142,7 +174,8 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
       case receivedPacketAndSenderAddr := <- msgChannel:
         receivedPacket := receivedPacketAndSenderAddr.Packet
         senderAddr := receivedPacketAndSenderAddr.SenderAddr
-
+        fmt.Println("======== Packet arrived in HandleGossipPackets")
+        fmt.Println("======== Address is = ", senderAddr)
           // Add to KnownPeers
           gossiper.Peers[senderAddr] = true
           // if the simple flag is on, only handle simple packets and disregard any others
@@ -193,36 +226,10 @@ func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMess
 
   gossiper.MyMessages.Lck.Lock()
   defer gossiper.MyMessages.Lck.Unlock()
-
   origin := newRumor.Origin
   currentMessages := gossiper.MyMessages.Messages[origin]
   currentMessages = append(currentMessages, *newRumor)
   gossiper.MyMessages.Messages[origin] = currentMessages
-}
-
-func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus *structs.StatusPacket) *structs.PeerStatus {
-
-  gossiperStatusMap := helpers.ConvertPeerStatusVectorClockToMap(gossiper.Want)
-  receivedStatusMap := helpers.ConvertPeerStatusVectorClockToMap(receivedStatus.Want)
-  var returnStatus *structs.PeerStatus = nil
-  // if the
-  for k, v := range gossiperStatusMap {
-    if val, ok := receivedStatusMap[k]; !ok {
-      // the gossiper/sender node has at least one message with an origin k while
-      //    the receiver node has none at all - send rumor (k, 1)
-      returnStatus.Identifier = k
-      returnStatus.NextID = 1
-    } else {
-      // both gossiper/sender node and the receiver node have at least one message
-      //    with an origin k. compare the NextID
-      if v > val {
-        // gossiper/sender has a newer message with origin k than the receiver node does
-        returnStatus.Identifier = k
-        returnStatus.NextID = v
-      }
-    }
-  }
-  return returnStatus
 }
 
 
@@ -238,33 +245,4 @@ func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus
   if !alreadyExisted {
     gossiper.Want = append(gossiper.Want, *status)
   }
-}
-
-// Code written based on the example in 'golang.org/pkg/time'
-func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string) {
-    fmt.Println("TIMEOUT CODE FOLLOWS")
-    // TIMEOUT
-    ticker := time.NewTicker(time.Second)
-    defer ticker.Stop()
-    // SUBSTITUTE THIS WITH A CHANNEL WHERE THE GOSSIPER RECEIVES MESSAGES
-    timeoutChanel := make(chan bool)
-    go func() {
-      time.Sleep(10 * time.Second)
-      timeoutChanel <- true
-    }()
-    for {
-      fmt.Println("Waiting for a message from peer ", chosenPeer)
-      select{
-      case status := <- gossiper.MapOfChanels[chosenPeer]:
-        // if a status packet is received through the gossiper's channel
-        // do as needed
-        fmt.Println("HANDLE STATUS PACKET from node ", status.SenderAddr)
-        // Restart timer
-        ticker = time.NewTicker(time.Second)
-      case t := <- timeoutChanel:
-        fmt.Println("Current rumor mongering timed out.", t)
-        fmt.Println("Pick another peer to start rumor mongering with.")
-        // RANDOMLY PICK A
-      }
-    }
 }

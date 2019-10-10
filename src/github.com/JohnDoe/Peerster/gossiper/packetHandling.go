@@ -20,8 +20,10 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
     return
   }
 
-  // If message is new, print to standard output, update seen messages and chanel map,
-  if !helpers.AlreadySeenMessage(gossiper, rumor) {
+  if helpers.AlreadySeenMessage(gossiper, rumor) {
+    fmt.Println("Received an already seen rumor")
+  } else {
+    // If message is new, print to standard output, update seen messages and chanel map,
     helpers.WriteToStandardOutputWhenRumorMessageReceived(gossiper, packet, senderAddr)
     // If this is the first rumor packet of a rumormongering session, update the map of chanels of this node
     gossiper.MapHandler <- senderAddr
