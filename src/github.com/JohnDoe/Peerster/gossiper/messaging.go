@@ -10,7 +10,7 @@ import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/dedis/protobuf"
 
 
-func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) string {
+func chooseRandomPeer (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) string {
 
   chosenPeer := ""
   if gossipPacket.Rumor == nil {
@@ -30,6 +30,7 @@ func chooseRandomPeerAndSendPacket (gossiper *structs.Gossiper, gossipPacket *st
   }
   return chosenPeer
 }
+
 
 func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddress string) {
   statusPacket := structs.StatusPacket{Want: gossiper.Want}
@@ -66,7 +67,6 @@ func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus 
 func getRumorFromSeenMessages(gossiper *structs.Gossiper, status *structs.PeerStatus) *structs.RumorMessage {
 
   if status.Identifier == "" || status.NextID == 0 {
-    fmt.Println("Invalid PeerStatus")
     return nil;
   }
 

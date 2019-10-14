@@ -21,7 +21,7 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
   }
 
   if helpers.AlreadySeenMessage(gossiper, rumor) {
-    fmt.Println("Received an already seen rumor")
+    // received an already seen message
   } else {
     // If message is new, print to standard output, update seen messages and chanel map,
     helpers.WriteToStandardOutputWhenRumorMessageReceived(gossiper, packet, senderAddr)
@@ -42,28 +42,41 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
 }
 
 func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.GossipPacket, senderAddr string) {
-  fmt.Println("RECEIVED MY FIRST STATUS PACKET!!!")
   status := packet.Status
+  helpers.WriteToStandardOutputWhenStatusMessageReceived(gossiper, packet, senderAddr)
+
   newRumorStatuts := getStatusForNextRumor(&gossiper.Want, &status.Want)
   newRumorToSend := getRumorFromSeenMessages(gossiper, newRumorStatuts)
   if newRumorToSend != nil {
     // Sender has more rumors to send
-    fmt.Println("Original sender has more rumors to send to the receiver")
     nextPacket := structs.GossipPacket{Rumor: newRumorToSend}
-    go sendPacketAndWaitForStatus(gossiper, &nextPacket, senderAddr)
+    go sendRumorAndWaitForStatusOrTimeout(gossiper, &nextPacket, senderAddr)
   } else {
     // check if the original sender has seen all of the original receiver's messages
     reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
     if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
-      fmt.Println("Original receiver has more rumors to send to the sender")
       // original sender has not seen all of receiver's messages so sends a status packet to it
       statusToSendBack := structs.CreateNewStatusPacket(gossiper.Want)
       statusPacket := structs.GossipPacket{Status: statusToSendBack}
       sendPacket(gossiper, &statusPacket, senderAddr)
     } else {
-      fmt.Println("Time to flip a coin")
-      // statuses of both sender and receiver are the same - flip a coin
-      // coinResult := flipCoin()
+      helpers.WriteToStandardOutputWhenInSyncWith(senderAddr)
+      // // statuses of both sender and receiver are the same - flip a coin
+      // coinResult := helpers.FlipCoin()
+      // if coinResult == 0 {
+      //   //Pick a new peer to send the SAME rumor message to
+      //   chosenPeer := chooseRandomPeer(gossiper, packet , gossiper.Address.String())
+      //   if chosenPeer == "" {
+      //     fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
+      //     return
+      //   }
+      //   helpers.WriteToStandardOutputWhenFlippedCoin(chosenPeer)
+      //   // TODO: WHERE DO YOU GET THE RUMOR PACKET FROM
+      //   //pckt := structs.GossipPacket{Rumor: }
+      //   //initiateRumorMongering(gossiper, )
+      // } else if coinResult == 1 {
+      //   //End of rumor mongering process
+      // }
     }
   }
 }

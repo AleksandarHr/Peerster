@@ -2,6 +2,8 @@ package helpers
 
 import "flag"
 import "fmt"
+import "time"
+import "math/rand"
 import "strings"
 import "github.com/JohnDoe/Peerster/structs"
 
@@ -57,6 +59,11 @@ func AlreadySeenMessage (gossiper *structs.Gossiper, rumor *structs.RumorMessage
   return alreadySeen
 }
 
+/*FlipCoin - a function to return 0 or 1*/
+func FlipCoin() int {
+  rand.Seed(time.Now().UnixNano())
+  return rand.Intn(2)
+}
 
 
 /*ConvertPeerStatusVectorClockToMap - convert vector clock to map */
