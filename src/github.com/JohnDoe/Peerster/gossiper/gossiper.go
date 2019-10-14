@@ -17,10 +17,10 @@ func HandleChanelMap(gossiper *structs.Gossiper, mapCh chan string) {
     select {
     case addressToAdd := <- mapCh:
       if _, ok := gossiper.MapOfChanels[addressToAdd]; !ok {
-        newChanel := make(chan structs.PacketAndAddress)
+        newChanel := make(chan structs.PacketAndAddresses)
         gossiper.MapOfChanels[addressToAdd] = newChanel
-        go handleCommunicationOnNewChanel(gossiper, addressToAdd)
       }
+      go handleCommunicationOnNewChanel(gossiper, addressToAdd)
     }
   }
 }
@@ -98,7 +98,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       updateSeenMessages(gossiper, rumorMessage)
 
       // BEGIN RUMORMONGERING in a go routine
-      initiateRumorMongering(gossiper, gossipPacket)
+      go initiateRumorMongering(gossiper, gossipPacket)
     }
   }
 }
@@ -124,10 +124,10 @@ func sendPacketAndWaitForStatus (gossiper *structs.Gossiper, packet *structs.Gos
   rumor := packet.Rumor
   addr := gossiper.Address.String()
   if rumor != nil {
-    packetAndAddress := structs.PacketAndAddress{Packet: packet, SenderAddr: addr}
+    PacketAndAddresses := structs.PacketAndAddresses{Packet: packet, SenderAddr: addr, ReceiverAddr: receiverAddr}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
-    gossiper.MapOfChanels[receiverAddr] <- packetAndAddress
-    go mongeringTimeout(gossiper, receiverAddr,packet)
+    gossiper.MapOfChanels[receiverAddr] <- PacketAndAddresses
+    mongeringTimeout(gossiper, receiverAddr,packet)
   }
 }
 
@@ -140,7 +140,7 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
     // SUBSTITUTE THIS WITH A CHANNEL WHERE THE GOSSIPER RECEIVES MESSAGES
     timeoutChanel := make(chan bool)
     go func() {
-      time.Sleep(5 * time.Second)
+      time.Sleep(10 * time.Second)
       timeoutChanel <- true
     }()
     for {
@@ -157,18 +157,18 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
         fmt.Println("Current rumor mongering timed out.", t)
         fmt.Println("Pick another peer to start rumor mongering with.")
         // RANDOMLY PICK A
-        initiateRumorMongering(gossiper, packet)
+        go initiateRumorMongering(gossiper, packet)
       }
     }
 }
 
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
-func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddress) {
+func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddresses) {
 
   // 1) open a go routine to with a channel aceepting packets, which will call the appropriate handling function
   // a go routine which loops forever, accepts incoming packets, and distributes them
   //    to helper functions depending on their type (simple, rumor, status)
-  go func(msgChannel chan structs.PacketAndAddress) {
+  go func(msgChannel chan structs.PacketAndAddresses) {
     for{
       select {
       case receivedPacketAndSenderAddr := <- msgChannel:
@@ -195,7 +195,7 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
   // 2) open a go routine for the infinite loop of accepting incoming messages
   // a go routine which loops forever, reads incoming messages and sends them to
   // the previous go routine to be handled accordingly
-  go func(msgChanel chan structs.PacketAndAddress) {
+  go func(msgChanel chan structs.PacketAndAddresses) {
     peerBuffer := make([]byte, maxBufferSize)
     for {
       numBytes, addr, errRead := gossiper.Conn.ReadFromUDP(peerBuffer)
@@ -209,7 +209,7 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
       }
       // 3) whenever a new message arrives in routine2, send it via channel to routine1 which will handle it
       senderAddr := addr.String()
-      msgChanel <- structs.PacketAndAddress{Packet: &packet, SenderAddr: senderAddr}
+      msgChanel <- structs.PacketAndAddresses{Packet: &packet, SenderAddr: senderAddr, ReceiverAddr: gossiper.Address.String()}
     }
   }(incomingPacketsChannel)
 }

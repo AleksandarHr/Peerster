@@ -28,19 +28,42 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
     // If this is the first rumor packet of a rumormongering session, update the map of chanels of this node
     gossiper.MapHandler <- senderAddr
     updateSeenMessages(gossiper, rumor)
+    // Update PeerStatus information
+    peerStatus := structs.CreateNewPeerStatusPair(rumor.Origin, uint32(rumor.ID + 1))
+    updatePeerStatusList(gossiper, peerStatus)
 
     // Send status packet
     status := structs.CreateNewStatusPacket(gossiper.Want)
     statusPacket := structs.GossipPacket{Status: status}
-    // packetAndAddress := structs.PacketAndAddress{Packet: &statusPacket, SenderAddr: gossiper.Address.String()}
+    // PacketAndAddresses := structs.PacketAndAddresses{Packet: &statusPacket, SenderAddr: gossiper.Address.String()}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
     sendPacket(gossiper, &statusPacket, senderAddr)
   }
-  // Update PeerStatus information
-  peerStatus := structs.CreateNewPeerStatusPair(rumor.Origin, uint32(rumor.ID + 1))
-  updatePeerStatusList(gossiper, peerStatus)
 }
 
 func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.GossipPacket, senderAddr string) {
   fmt.Println("RECEIVED MY FIRST STATUS PACKET!!!")
+  status := packet.Status
+  newRumorStatuts := getStatusForNextRumor(&gossiper.Want, &status.Want)
+  newRumorToSend := getRumorFromSeenMessages(gossiper, newRumorStatuts)
+  if newRumorToSend != nil {
+    // Sender has more rumors to send
+    fmt.Println("Original sender has more rumors to send to the receiver")
+    nextPacket := structs.GossipPacket{Rumor: newRumorToSend}
+    go sendPacketAndWaitForStatus(gossiper, &nextPacket, senderAddr)
+  } else {
+    // check if the original sender has seen all of the original receiver's messages
+    reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
+    if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
+      fmt.Println("Original receiver has more rumors to send to the sender")
+      // original sender has not seen all of receiver's messages so sends a status packet to it
+      statusToSendBack := structs.CreateNewStatusPacket(gossiper.Want)
+      statusPacket := structs.GossipPacket{Status: statusToSendBack}
+      sendPacket(gossiper, &statusPacket, senderAddr)
+    } else {
+      fmt.Println("Time to flip a coin")
+      // statuses of both sender and receiver are the same - flip a coin
+      // coinResult := flipCoin()
+    }
+  }
 }

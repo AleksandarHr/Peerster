@@ -53,10 +53,11 @@ type SeenMessages struct {
   Lck sync.Mutex
 }
 
-/*PacketAndAddress - a struct */
-type PacketAndAddress struct {
+/*PacketAndAddresses - a struct */
+type PacketAndAddresses struct {
   Packet *GossipPacket
   SenderAddr string
+  ReceiverAddr string
 }
 
 /*AddRemoveChanelFromMap - a struct */

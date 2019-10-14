@@ -39,11 +39,11 @@ func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddr
 
 // When the original sender receives a status packet from the receiver, compare its own status to it
 //    and return ' the first ' rumor which the receiver does not have
-func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus *structs.StatusPacket) *structs.RumorMessage {
+func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus *[]structs.PeerStatus) *structs.PeerStatus {
 
-  gossiperStatusMap := helpers.ConvertPeerStatusVectorClockToMap(gossiper.Want)
-  receivedStatusMap := helpers.ConvertPeerStatusVectorClockToMap(receivedStatus.Want)
-  var returnStatus *structs.PeerStatus = nil
+  gossiperStatusMap := helpers.ConvertPeerStatusVectorClockToMap(*gossiperStatus)
+  receivedStatusMap := helpers.ConvertPeerStatusVectorClockToMap(*receivedStatus)
+  returnStatus := structs.PeerStatus{Identifier: "", NextID: 0}
   // if the
   for k, v := range gossiperStatusMap {
     if val, ok := receivedStatusMap[k]; !ok {
@@ -55,17 +55,21 @@ func getNextRumorToSendIfSenderHasOne(gossiper *structs.Gossiper, receivedStatus
       // both gossiper/sender node and the receiver node have at least one message
       //    with an origin k. compare the NextID
       if v > val {
-        // gossiper/sender has a newer message with origin k than the receiver node does
         returnStatus.Identifier = k
         returnStatus.NextID = v
       }
     }
   }
-
-  return getRumorFromSeenMessages(gossiper, returnStatus)
+  return &returnStatus
 }
 
 func getRumorFromSeenMessages(gossiper *structs.Gossiper, status *structs.PeerStatus) *structs.RumorMessage {
+
+  if status.Identifier == "" || status.NextID == 0 {
+    fmt.Println("Invalid PeerStatus")
+    return nil;
+  }
+
   gossiper.MyMessages.Lck.Lock()
   defer gossiper.MyMessages.Lck.Unlock()
   var returnRumor *structs.RumorMessage = nil

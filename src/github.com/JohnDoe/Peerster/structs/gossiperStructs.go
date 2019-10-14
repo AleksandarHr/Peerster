@@ -16,8 +16,8 @@ type Gossiper struct {
   Peers map[string]bool
   Want []PeerStatus
   MyMessages *SeenMessages
-  PacketChanel chan PacketAndAddress
-  MapOfChanels map[string]chan PacketAndAddress
+  PacketChanel chan PacketAndAddresses
+  MapOfChanels map[string]chan PacketAndAddresses
   MapHandler chan string
   CurrentMessageID uint32
 }
@@ -68,9 +68,9 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
 
   var status []PeerStatus
   seenMessages := CreateSeenMessagesStruct()
-  packetChanel := make(chan PacketAndAddress)
+  packetChanel := make(chan PacketAndAddresses)
   mapHandler := make(chan string)
-  chanelMap := make(map[string]chan PacketAndAddress)
+  chanelMap := make(map[string]chan PacketAndAddresses)
 
   gossiper := &Gossiper{
     Address:      udpAddr,
