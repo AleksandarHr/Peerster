@@ -19,6 +19,7 @@ type Gossiper struct {
   PacketChanel chan PacketAndAddresses
   MapOfChanels map[string]chan PacketAndAddresses
   MapHandler chan string
+  MongeringMessages map[string]RumorMessage
   CurrentMessageID uint32
 }
 
@@ -71,6 +72,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
   packetChanel := make(chan PacketAndAddresses)
   mapHandler := make(chan string)
   chanelMap := make(map[string]chan PacketAndAddresses)
+  mongeringMap := make(map[string]RumorMessage)
 
   gossiper := &Gossiper{
     Address:      udpAddr,
@@ -82,6 +84,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
     PacketChanel: packetChanel,
     MapOfChanels: chanelMap,
     MapHandler:   mapHandler,
+    MongeringMessages: mongeringMap,
     CurrentMessageID: 1,
   }
 

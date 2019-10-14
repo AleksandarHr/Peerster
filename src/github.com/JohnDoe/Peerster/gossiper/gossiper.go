@@ -9,6 +9,7 @@ import "github.com/JohnDoe/Peerster/structs"
 
 var maxBufferSize = 1024
 var localhost = "127.0.0.1"
+var sciper = "309750"
 
 /*HandleChanelMap - a function to keep the [addres -> chanel] map up to date
 */
@@ -84,11 +85,11 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       broadcastGossipPacket(gossiper, gossipPacket, "")
     } else {
       // If simple flag IS NOT on, create a RumorMessage from the user message
-      rumorMessage := structs.CreateNewRumorMessage(gossiper.Name, gossiper.CurrentMessageID, clientMessage)
+      rumorMessage := structs.CreateNewRumorMessage(gossiper.Name + sciper, gossiper.CurrentMessageID, clientMessage)
       gossiper.CurrentMessageID++;
       gossipPacket.Rumor = rumorMessage
 
-      peerStatus := structs.CreateNewPeerStatusPair(gossiper.Name, uint32(rumorMessage.ID + 1))
+      peerStatus := structs.CreateNewPeerStatusPair(rumorMessage.Origin, uint32(rumorMessage.ID + 1))
       updatePeerStatusList(gossiper, peerStatus)
       // ADD new rumor message to SEEN MESSAGES
       updateSeenMessages(gossiper, rumorMessage)
@@ -101,7 +102,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
 
 func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
   // Choose random peer to send the rumor message to and add to the map of chanels
-  chosenPeer := chooseRandomPeer(gossiper, packet , gossiper.Address.String())
+  chosenPeer := chooseRandomPeer(gossiper, gossiper.Address.String())
   if chosenPeer == "" {
     fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
     return
@@ -118,6 +119,7 @@ func sendRumorAndWaitForStatusOrTimeout (gossiper *structs.Gossiper, packet *str
   rumor := packet.Rumor
   addr := gossiper.Address.String()
   if rumor != nil {
+    gossiper.MongeringMessages[receiverAddr] = *rumor
     pckt := structs.PacketAndAddresses{Packet: packet, SenderAddr: addr, ReceiverAddr: receiverAddr}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
     gossiper.MapOfChanels[receiverAddr] <- pckt

@@ -61,22 +61,24 @@ func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.Goss
       sendPacket(gossiper, &statusPacket, senderAddr)
     } else {
       helpers.WriteToStandardOutputWhenInSyncWith(senderAddr)
-      // // statuses of both sender and receiver are the same - flip a coin
-      // coinResult := helpers.FlipCoin()
-      // if coinResult == 0 {
-      //   //Pick a new peer to send the SAME rumor message to
-      //   chosenPeer := chooseRandomPeer(gossiper, packet , gossiper.Address.String())
-      //   if chosenPeer == "" {
-      //     fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
-      //     return
-      //   }
-      //   helpers.WriteToStandardOutputWhenFlippedCoin(chosenPeer)
-      //   // TODO: WHERE DO YOU GET THE RUMOR PACKET FROM
-      //   //pckt := structs.GossipPacket{Rumor: }
-      //   //initiateRumorMongering(gossiper, )
-      // } else if coinResult == 1 {
-      //   //End of rumor mongering process
-      // }
+      // statuses of both sender and receiver are the same - flip a coin
+      coinResult := helpers.FlipCoin()
+      if coinResult == 0 {
+        //Pick a new peer to send the SAME rumor message to
+        chosenPeer := chooseRandomPeer(gossiper, gossiper.Address.String())
+        if chosenPeer == "" {
+          fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
+          return
+        }
+        helpers.WriteToStandardOutputWhenFlippedCoin(chosenPeer)
+        // get the last rumor message that was sent to the peer we just found out are in sync
+        lastRumor := gossiper.MongeringMessages[senderAddr]
+        pckt := structs.GossipPacket{Rumor: &lastRumor}
+        go initiateRumorMongering(gossiper, &pckt)
+      } else if coinResult == 1 {
+        fmt.Println("Exiting mongering process after flipping a coin")
+        //End of rumor mongering process
+      }
     }
   }
 }

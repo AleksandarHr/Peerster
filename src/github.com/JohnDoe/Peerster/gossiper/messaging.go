@@ -10,14 +10,9 @@ import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/dedis/protobuf"
 
 
-func chooseRandomPeer (gossiper *structs.Gossiper, gossipPacket *structs.GossipPacket, peerSenderAddress string) string {
+func chooseRandomPeer (gossiper *structs.Gossiper, peerSenderAddress string) string {
 
   chosenPeer := ""
-  if gossipPacket.Rumor == nil {
-    fmt.Println("Trying to send a null RumorMessage")
-    return chosenPeer
-  }
-
   knownPeers := helpers.JoinMapKeys(gossiper.Peers)
   if (len(knownPeers) != 0) {
     listOfPeers := strings.Split(knownPeers, ",")
@@ -26,7 +21,6 @@ func chooseRandomPeer (gossiper *structs.Gossiper, gossipPacket *structs.GossipP
     rng := rand.New(seed)
     idx := rng.Intn(len(listOfPeers))
     chosenPeer = listOfPeers[idx]
-    // sendPacket(gossiper, gossipPacket, chosenPeer)
   }
   return chosenPeer
 }
