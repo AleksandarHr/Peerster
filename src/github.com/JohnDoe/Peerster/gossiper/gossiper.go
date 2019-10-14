@@ -85,7 +85,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       broadcastGossipPacket(gossiper, gossipPacket, "")
     } else {
       // If simple flag IS NOT on, create a RumorMessage from the user message
-      rumorMessage := structs.CreateNewRumorMessage(gossiper.Name + sciper, gossiper.CurrentMessageID, clientMessage)
+      rumorMessage := structs.CreateNewRumorMessage(gossiper.Name, gossiper.CurrentMessageID, clientMessage)
       gossiper.CurrentMessageID++;
       gossipPacket.Rumor = rumorMessage
 
@@ -111,7 +111,7 @@ func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPa
   gossiper.MapHandler <- chosenPeer
   time.Sleep(2*time.Second)
 
-  go sendRumorAndWaitForStatusOrTimeout(gossiper, packet, chosenPeer)
+  sendRumorAndWaitForStatusOrTimeout(gossiper, packet, chosenPeer)
 }
 
 
@@ -123,7 +123,6 @@ func sendRumorAndWaitForStatusOrTimeout (gossiper *structs.Gossiper, packet *str
     pckt := structs.PacketAndAddresses{Packet: packet, SenderAddr: addr, ReceiverAddr: receiverAddr}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
     gossiper.MapOfChanels[receiverAddr] <- pckt
-    fmt.Println("Just sent the packet to the chanel - write to stdout??")
     helpers.WriteToStandardOutputWhenMongering(receiverAddr)
     mongeringTimeout(gossiper, receiverAddr, packet)
   }
@@ -149,13 +148,13 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
     case t := <- timeoutChanel:
       if t {
         fmt.Println("Timeout occured")
-        go initiateRumorMongering(gossiper, packet)
+        initiateRumorMongering(gossiper, packet)
         break;
       }
     }
   }
   fmt.Println("EXITTED MONGERING TIMEOUT LOOP")
-  }
+}
 
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
 func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPacketsChannel chan structs.PacketAndAddresses) {

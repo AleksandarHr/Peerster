@@ -32,39 +32,59 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
     peerStatus := structs.CreateNewPeerStatusPair(rumor.Origin, uint32(rumor.ID + 1))
     updatePeerStatusList(gossiper, peerStatus)
 
-    // Send status packet
+    // Send status packet back to the original sender peer
     status := structs.CreateNewStatusPacket(gossiper.Want)
     statusPacket := structs.GossipPacket{Status: status}
-    // PacketAndAddresses := structs.PacketAndAddresses{Packet: &statusPacket, SenderAddr: gossiper.Address.String()}
-    // send the rumor message to the randomly chosen peer through the corresponding chanel
     sendPacket(gossiper, &statusPacket, senderAddr)
+
+    // send the just-received rumor to a random known peer
+    go initiateRumorMongering(gossiper, packet)
+  }
+}
+
+func printAllSeenMsg(gossiper *structs.Gossiper) {
+  gossiper.MyMessages.Lck.Lock()
+  defer gossiper.MyMessages.Lck.Unlock()
+
+  fmt.Println("PRINTING ALL SEEN MESSAGES FOR CURRENT NODE")
+  for k, v := range gossiper.MyMessages.Messages {
+    fmt.Println("peer ", k, " #msg ", len(v))
   }
 }
 
 func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.GossipPacket, senderAddr string) {
   status := packet.Status
   helpers.WriteToStandardOutputWhenStatusMessageReceived(gossiper, packet, senderAddr)
-
+  // printAllSeenMsg(gossiper)
   newRumorStatuts := getStatusForNextRumor(&gossiper.Want, &status.Want)
   newRumorToSend := getRumorFromSeenMessages(gossiper, newRumorStatuts)
   if newRumorToSend != nil {
     // Sender has more rumors to send
-    fmt.Println("I have something to send!! ")
     nextPacket := structs.GossipPacket{Rumor: newRumorToSend}
     go sendRumorAndWaitForStatusOrTimeout(gossiper, &nextPacket, senderAddr)
-  } else {
-    fmt.Println("I need something you have - send it to me!!")
-    // check if the original sender has seen all of the original receiver's messages
-    reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
-    if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
-      // original sender has not seen all of receiver's messages so sends a status packet to it
-      statusToSendBack := structs.CreateNewStatusPacket(gossiper.Want)
-      statusPacket := structs.GossipPacket{Status: statusToSendBack}
-      sendPacket(gossiper, &statusPacket, senderAddr)
     } else {
-      helpers.WriteToStandardOutputWhenInSyncWith(senderAddr)
-      // statuses of both sender and receiver are the same - flip a coin
-      coinResult := helpers.FlipCoin()
+      // check if the original sender has seen all of the original receiver's messages
+      reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
+      if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
+        // original sender has not seen all of receiver's messages so sends a status packet to it
+        statusToSendBack := structs.CreateNewStatusPacket(gossiper.Want)
+        statusPacket := structs.GossipPacket{Status: statusToSendBack}
+        sendPacket(gossiper, &statusPacket, senderAddr)
+      } else {
+        helpers.WriteToStandardOutputWhenInSyncWith(senderAddr)
+        // statuses of both sender and receiver are the same - flip a coin
+        coinResult := helpers.FlipCoin()
+        exitCh := make(chan structs.GossipPacket)
+        go func() {
+          for {
+            select{
+            case pckt := <- exitCh:
+              initiateRumorMongering(gossiper, &pckt)
+            case <- exitCh:
+              return
+            }
+          }
+        }()
       if coinResult == 0 {
         //Pick a new peer to send the SAME rumor message to
         chosenPeer := chooseRandomPeer(gossiper)
@@ -76,10 +96,11 @@ func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.Goss
         // get the last rumor message that was sent to the peer we just found out are in sync
         lastRumor := gossiper.MongeringMessages[senderAddr]
         pckt := structs.GossipPacket{Rumor: &lastRumor}
-        go initiateRumorMongering(gossiper, &pckt)
+        exitCh <- pckt
       } else if coinResult == 1 {
-        fmt.Println("Exiting mongering process after flipping a coin")
         //End of rumor mongering process
+        fmt.Println("Exiting mongering process after flipping a coin")
+        close(exitCh)
       }
     }
   }

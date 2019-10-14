@@ -51,7 +51,7 @@ func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus 
       //    with an origin k. compare the NextID
       if v > val {
         returnStatus.Identifier = k
-        returnStatus.NextID = v
+        returnStatus.NextID = val
       }
     }
   }
