@@ -123,6 +123,7 @@ func sendRumorAndWaitForStatusOrTimeout (gossiper *structs.Gossiper, packet *str
     pckt := structs.PacketAndAddresses{Packet: packet, SenderAddr: addr, ReceiverAddr: receiverAddr}
     // send the rumor message to the randomly chosen peer through the corresponding chanel
     gossiper.MapOfChanels[receiverAddr] <- pckt
+    fmt.Println("Just sent the packet to the chanel - write to stdout??")
     helpers.WriteToStandardOutputWhenMongering(receiverAddr)
     mongeringTimeout(gossiper, receiverAddr, packet)
   }
@@ -234,6 +235,7 @@ func HandleAntiEntropy(gossiper *structs.Gossiper) {
         if chosenPeer == "" {
           fmt.Println("Gossiper has no known peers, cannot execute anti entropy")
         } else {
+          gossiper.MapHandler <- chosenPeer
           sendPacket(gossiper, pckt, chosenPeer)
         }
       }

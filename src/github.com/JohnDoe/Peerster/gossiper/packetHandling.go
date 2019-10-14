@@ -49,9 +49,11 @@ func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.Goss
   newRumorToSend := getRumorFromSeenMessages(gossiper, newRumorStatuts)
   if newRumorToSend != nil {
     // Sender has more rumors to send
+    fmt.Println("I have something to send!! ")
     nextPacket := structs.GossipPacket{Rumor: newRumorToSend}
     go sendRumorAndWaitForStatusOrTimeout(gossiper, &nextPacket, senderAddr)
   } else {
+    fmt.Println("I need something you have - send it to me!!")
     // check if the original sender has seen all of the original receiver's messages
     reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
     if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
