@@ -65,7 +65,7 @@ func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.Goss
       coinResult := helpers.FlipCoin()
       if coinResult == 0 {
         //Pick a new peer to send the SAME rumor message to
-        chosenPeer := chooseRandomPeer(gossiper, gossiper.Address.String())
+        chosenPeer := chooseRandomPeer(gossiper)
         if chosenPeer == "" {
           fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
           return

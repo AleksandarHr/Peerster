@@ -10,7 +10,7 @@ import "github.com/JohnDoe/Peerster/helpers"
 import "github.com/dedis/protobuf"
 
 
-func chooseRandomPeer (gossiper *structs.Gossiper, peerSenderAddress string) string {
+func chooseRandomPeer (gossiper *structs.Gossiper) string {
 
   chosenPeer := ""
   knownPeers := helpers.JoinMapKeys(gossiper.Peers)

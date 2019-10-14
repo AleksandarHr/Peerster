@@ -102,7 +102,7 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
 
 func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
   // Choose random peer to send the rumor message to and add to the map of chanels
-  chosenPeer := chooseRandomPeer(gossiper, gossiper.Address.String())
+  chosenPeer := chooseRandomPeer(gossiper)
   if chosenPeer == "" {
     fmt.Println("Current gossiper node has no known peers and cannot initiate rumor mongering.")
     return
@@ -130,12 +130,12 @@ func sendRumorAndWaitForStatusOrTimeout (gossiper *structs.Gossiper, packet *str
 
 // Code written based on the example in 'golang.org/pkg/time'
 func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *structs.GossipPacket) {
-    // TIMEOUT
+    for {// TIMEOUT
     ticker := time.NewTicker(time.Second)
     defer ticker.Stop()
     timeoutChanel := make(chan bool)
     go func() {
-      time.Sleep(10 * time.Second)
+      time.Sleep(5 * time.Second)
       timeoutChanel <- true
     }()
     select{
@@ -145,13 +145,15 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
       gossiper.PacketChanel <- status
       // Restart timer
       ticker = time.NewTicker(time.Second)
-      return
     case t := <- timeoutChanel:
       if t {
+        fmt.Println("Timeout occured")
         go initiateRumorMongering(gossiper, packet)
-        return
+        break;
       }
     }
+  }
+  fmt.Println("EXITTED MONGERING TIMEOUT LOOP")
   }
 
 /*HandleGossipPackets - a function to handle incoming gossip packets - simple packet, rumor packet, status packet */
@@ -210,6 +212,33 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
       }
     }
   }(incomingPacketsChannel)
+}
+
+/*HandleAntiEntropy - a function to fire periodically gossiper's status to a random known peer */
+func HandleAntiEntropy(gossiper *structs.Gossiper) {
+  for {
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+    timeoutChanel := make(chan bool)
+    go func() {
+      time.Sleep(10 * time.Second)
+      timeoutChanel <- true
+    }()
+    select{
+    case t := <- timeoutChanel:
+      if t {
+        fmt.Println("Anti entropy timeout occured")
+        sp := &structs.StatusPacket{Want: gossiper.Want}
+        pckt := &structs.GossipPacket{Status: sp}
+        chosenPeer := chooseRandomPeer(gossiper)
+        if chosenPeer == "" {
+          fmt.Println("Gossiper has no known peers, cannot execute anti entropy")
+        } else {
+          sendPacket(gossiper, pckt, chosenPeer)
+        }
+      }
+    }
+  }
 }
 
 
