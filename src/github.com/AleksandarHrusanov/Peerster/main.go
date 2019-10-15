@@ -57,7 +57,7 @@ func main() {
   wg.Add(1)
   go func() {
     defer wg.Done()
-    webserver.HandleWebClientMessages()
+    webserver.HandleWebClientMessages(flags.UIPort)
   }()
 
   wg.Wait()

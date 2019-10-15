@@ -87,19 +87,24 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
       broadcastGossipPacket(gossiper, gossipPacket, "")
     } else {
       // If simple flag IS NOT on, create a RumorMessage from the user message
-      rumorMessage := structs.CreateNewRumorMessage(gossiper.Name, gossiper.CurrentMessageID, clientMessage)
-      gossiper.CurrentMessageID++;
-      gossipPacket.Rumor = rumorMessage
-
-      peerStatus := structs.CreateNewPeerStatusPair(rumorMessage.Origin, uint32(rumorMessage.ID + 1))
-      updatePeerStatusList(gossiper, peerStatus)
-      // ADD new rumor message to SEEN MESSAGES
-      updateSeenMessages(gossiper, rumorMessage)
-
-      // BEGIN RUMORMONGERING in a go routine
-      go initiateRumorMongering(gossiper, gossipPacket)
+      MongerClientMessage(gossiper, clientMessage, gossipPacket)
     }
   }
+}
+
+/*MongerClientMessage - a function to create a rumor from a client message and initiate mongering*/
+func MongerClientMessage(gossiper *structs.Gossiper, clientMessage string, gossipPacket *structs.GossipPacket) {
+  rumorMessage := structs.CreateNewRumorMessage(gossiper.Name, gossiper.CurrentMessageID, clientMessage)
+  gossiper.CurrentMessageID++;
+  gossipPacket.Rumor = rumorMessage
+
+  peerStatus := structs.CreateNewPeerStatusPair(rumorMessage.Origin, uint32(rumorMessage.ID + 1))
+  updatePeerStatusList(gossiper, peerStatus)
+  // ADD new rumor message to SEEN MESSAGES
+  updateSeenMessages(gossiper, rumorMessage)
+
+  // BEGIN RUMORMONGERING in a go routine
+  go initiateRumorMongering(gossiper, gossipPacket)
 }
 
 func initiateRumorMongering(gossiper *structs.Gossiper, packet *structs.GossipPacket) {
