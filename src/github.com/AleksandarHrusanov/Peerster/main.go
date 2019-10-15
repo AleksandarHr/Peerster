@@ -51,7 +51,7 @@ func main() {
   wg.Add(1)
   go func() {
     defer wg.Done()
-    webserver.StartWebServer(gossiperNode, )
+    webserver.StartWebServer(gossiperNode)
   }()
 
   wg.Wait()
