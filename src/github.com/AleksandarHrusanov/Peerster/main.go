@@ -4,7 +4,7 @@ import "sync"
 import "github.com/AleksandarHrusanov/Peerster/gossiper"
 import "github.com/AleksandarHrusanov/Peerster/helpers"
 import "github.com/AleksandarHrusanov/Peerster/structs"
-
+import "github.com/AleksandarHrusanov/Peerster/webserver"
 /*
   Gossiper program
   Takes as arguments the following:
@@ -46,6 +46,12 @@ func main() {
   go func() {
     defer wg.Done()
     gossiper.HandleChanelMap(gossiperNode, gossiperNode.MapHandler)
+  }()
+
+  wg.Add(1)
+  go func() {
+    defer wg.Done()
+    webserver.StartWebServer(gossiperNode, )
   }()
 
   wg.Wait()
