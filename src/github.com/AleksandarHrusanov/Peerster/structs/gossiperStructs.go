@@ -3,6 +3,7 @@ package structs
 import "net"
 import "fmt"
 import "time"
+import "sync"
 import "strings"
 
 /*Gossiper - a struct containing
@@ -15,13 +16,19 @@ type Gossiper struct {
   Conn *net.UDPConn
   Name string
   Peers map[string]bool
-  Want []PeerStatus
+  GossiperStatus GossiperWantLock
   MyMessages *SeenMessages
   PacketChanel chan PacketAndAddresses
   MapOfChanels map[string]chan PacketAndAddresses
   MapHandler chan string
   MongeringMessages map[string]RumorMessage
   CurrentMessageID uint32
+}
+
+/*GossiperWantLock - a struct to hold the gossiper status packet with a lock*/
+type GossiperWantLock struct {
+  Want []PeerStatus
+  Lck sync.Mutex
 }
 
 /*GossipPacket - To provide compatibility with future versions, the ONLY packets sent to other peers
@@ -75,13 +82,14 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
   mapHandler := make(chan string)
   chanelMap := make(map[string]chan PacketAndAddresses)
   mongeringMap := make(map[string]RumorMessage)
+  gspStatus := GossiperWantLock{Want: status}
 
   gossiper := &Gossiper{
     Address:      udpAddr,
     Conn:         udpConn,
     Name:         flags.Name,
     Peers:        peers,
-    Want:         status,
+    GossiperStatus: gspStatus,
     MyMessages:   seenMessages,
     PacketChanel: packetChanel,
     MapOfChanels: chanelMap,
