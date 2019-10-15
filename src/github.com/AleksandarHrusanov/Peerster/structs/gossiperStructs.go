@@ -18,6 +18,7 @@ type Gossiper struct {
   Peers map[string]bool
   GossiperStatus GossiperWantLock
   MyMessages *SeenMessages
+  LatestMessages []OriginTextPair
   PacketChanel chan PacketAndAddresses
   MapOfChanels map[string]chan PacketAndAddresses
   MapHandler chan string
@@ -57,13 +58,12 @@ type FlagsInformation struct {
 // =======================================================================================
 
 /*GetLatestRumorMessagesList - a function */
-func (gossiper *Gossiper) GetLatestRumorMessagesList() []RumorMessage{
-  msgs := []RumorMessage{}
-  rmr := RumorMessage{Origin: "Home", ID: 2, Text: "Message"}
-  gossiper.MongeringMessages["Artificial"] = rmr
-  for _, val := range gossiper.MongeringMessages {
+func (gossiper *Gossiper) GetLatestRumorMessagesList() []OriginTextPair{
+  var msgs []OriginTextPair
+  for _, val := range gossiper.LatestMessages {
     msgs = append(msgs, val)
   }
+  gossiper.LatestMessages = nil
   return msgs
 }
 // ==================================================================
@@ -95,6 +95,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
 
   var status []PeerStatus
   seenMessages := CreateSeenMessagesStruct()
+  var latestMessages []OriginTextPair
   packetChanel := make(chan PacketAndAddresses)
   mapHandler := make(chan string)
   chanelMap := make(map[string]chan PacketAndAddresses)
@@ -108,6 +109,7 @@ func CreateNewGossiper(address string, flags *FlagsInformation) *Gossiper {
     Peers:        peers,
     GossiperStatus: gspStatus,
     MyMessages:   seenMessages,
+    LatestMessages: latestMessages,
     PacketChanel: packetChanel,
     MapOfChanels: chanelMap,
     MapHandler:   mapHandler,

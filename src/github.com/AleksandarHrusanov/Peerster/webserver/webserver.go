@@ -30,14 +30,14 @@ func latestRumomrMessageHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println(r.Form)
     msg := structs.Message{}
     msg.Text = r.FormValue("NewMsg")
-    fmt.Println(msg.Text)
+
   }
 }
 
 func peersHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case "GET":
-    msgList := gossiperNode.GetLatestRumorMessagesList()
+    msgList := gossiperNode.Peers
     msgListJSON, err := json.Marshal(msgList)
     if err != nil {
     }
@@ -56,10 +56,15 @@ func StartWebServer(gossiper *structs.Gossiper) {
   http.Handle("/", http.FileServer(http.Dir("./")))
   // r.HandleFunc("/messages", latestRumomrMessageHandler)
   http.HandleFunc("/messages", latestRumomrMessageHandler)
+  http.HandleFunc("/nodes", peersHandler)
   for {
     err := http.ListenAndServe(":3000", nil)
     if err !=nil {
 
     }
   }
+}
+
+/*HandleWebClientMessages - a function to listen for and handle web client messages */
+func HandleWebClientMessages() {
 }

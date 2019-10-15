@@ -252,11 +252,16 @@ func HandleAntiEntropy(gossiper *structs.Gossiper, duration time.Duration) {
 func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMessage) {
 
   gossiper.MyMessages.Lck.Lock()
-  defer gossiper.MyMessages.Lck.Unlock()
+
   origin := newRumor.Origin
   currentMessages := gossiper.MyMessages.Messages[origin]
   currentMessages = append(currentMessages, *newRumor)
   gossiper.MyMessages.Messages[origin] = currentMessages
+
+  pair := structs.OriginTextPair{Origin: origin, Text: newRumor.Text}
+  gossiper.LatestMessages = append(gossiper.LatestMessages, pair)
+
+  gossiper.MyMessages.Lck.Unlock()
 }
 
 

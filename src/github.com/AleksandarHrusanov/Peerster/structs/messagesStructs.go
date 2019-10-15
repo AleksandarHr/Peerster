@@ -58,6 +58,12 @@ type SeenMessages struct {
   Lck sync.Mutex
 }
 
+/*OriginTextPair - a struct*/
+type OriginTextPair struct {
+  Origin string
+  Text string
+}
+
 /*PacketAndAddresses - a struct */
 type PacketAndAddresses struct {
   Packet *GossipPacket

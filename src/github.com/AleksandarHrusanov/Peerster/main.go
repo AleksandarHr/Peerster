@@ -54,6 +54,12 @@ func main() {
     webserver.StartWebServer(gossiperNode)
   }()
 
+  wg.Add(1)
+  go func() {
+    defer wg.Done()
+    webserver.HandleWebClientMessages()
+  }()
+
   wg.Wait()
 
 }
