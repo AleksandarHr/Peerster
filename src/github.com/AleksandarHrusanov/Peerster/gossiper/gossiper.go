@@ -3,7 +3,6 @@ package gossiper
 import "net"
 import "fmt"
 import "time"
-import "strconv"
 import "github.com/dedis/protobuf"
 import "github.com/AleksandarHrusanov/Peerster/helpers"
 import "github.com/AleksandarHrusanov/Peerster/structs"
@@ -74,7 +73,9 @@ func HandleClientMessages(gossiper *structs.Gossiper, uiPort string, simpleFlag 
     }
 
     // Write received client message to standard output
-    clientMessage := string(clientBuffer[0:numBytes])
+    clientMessageStruct := &structs.Message{}
+    protobuf.Decode(clientBuffer[0:numBytes], clientMessageStruct)
+    clientMessage := clientMessageStruct.Text
     helpers.WriteToStandardOutputWhenClientMessageReceived(gossiper, clientMessage)
     gossipPacket := &structs.GossipPacket{}
 
@@ -216,12 +217,7 @@ func HandleGossipPackets(gossiper *structs.Gossiper, simpleFlag bool, incomingPa
 }
 
 /*HandleAntiEntropy - a function to fire periodically gossiper's status to a random known peer */
-func HandleAntiEntropy(gossiper *structs.Gossiper, dur int) {
-  durString := strconv.Itoa(dur) + "s"
-  duration, err := time.ParseDuration(durString)
-  if err != nil {
-    fmt.Println("Error parsing flag for anti entropy duration, ", err)
-  }
+func HandleAntiEntropy(gossiper *structs.Gossiper, duration time.Duration) {
   for {
     ticker := time.NewTicker(time.Second)
     defer ticker.Stop()

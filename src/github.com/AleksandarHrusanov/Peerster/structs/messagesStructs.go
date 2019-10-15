@@ -24,6 +24,11 @@ type RumorMessage struct {
   Text    string
 }
 
+/*Message - a struct to hold a client message's text*/
+type Message struct {
+  Text string
+}
+
 /*PeerStatus -
     - Identifier, string - origin's name
     - NextID, uint32     - the next unseen message sequence number

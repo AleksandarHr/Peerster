@@ -2,6 +2,8 @@ package main
 import "flag"
 import "net"
 import "fmt"
+import "github.com/AleksandarHrusanov/Peerster/structs"
+import "github.com/dedis/protobuf"
 
 func main() {
 
@@ -27,9 +29,15 @@ func main() {
 
   defer udpConn.Close()
 
-  _, err = udpConn.Write([]byte(msg))
+  msgStruct := &structs.Message{msg}
+  packetBytes, err := protobuf.Encode(msgStruct)
   if err != nil {
-    fmt.Println("Error writing message")
+    fmt.Println("Error encoding message, ", err)
+  }
+
+  _, err = udpConn.Write(packetBytes)
+  if err != nil {
+    fmt.Println("Error writing message, ", err)
     return
   }
 

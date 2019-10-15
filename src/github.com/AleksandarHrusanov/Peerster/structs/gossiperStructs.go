@@ -2,6 +2,7 @@ package structs
 
 import "net"
 import "fmt"
+import "time"
 import "strings"
 
 /*Gossiper - a struct containing
@@ -38,7 +39,7 @@ type FlagsInformation struct {
   Name          string
   Peers         string
   Simple        bool
-  AntiEntropy   int
+  AntiEntropy   time.Duration
 }
 
 // ==================================================================

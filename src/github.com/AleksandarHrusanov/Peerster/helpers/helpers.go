@@ -18,7 +18,7 @@ func HandleFlags() (*structs.FlagsInformation) {
   var nameFlag = flag.String("name", "new_node", "name of the gossiper")
   var peersFlag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
   var simpleFlag = flag.Bool("simple", false, "run gossiper in simple mode")
-  var antiEntropyDurationFlag = flag.Int("antiEntropy", 10, "duratino in seconds for anti entropy timeout")
+  var antiEntropyDurationFlag = flag.Duration("antiEntropy", time.Duration(5), "duration in seconds for anti entropy timeout")
 
   // Parse all flagse
   flag.Parse()
