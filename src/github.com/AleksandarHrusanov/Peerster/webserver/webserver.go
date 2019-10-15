@@ -3,8 +3,10 @@ package webserver
 import "net/http"
 import "net"
 import "fmt"
+import "strings"
 import "encoding/json"
 import "github.com/AleksandarHrusanov/Peerster/structs"
+import "github.com/AleksandarHrusanov/Peerster/helpers"
 import "github.com/dedis/protobuf"
 
 //MyPage - a struct
@@ -14,10 +16,16 @@ type MyPage struct {
   SeenMessages []string
 }
 
+type node struct {
+  IP string
+  Port string
+}
+
 var myIndexPage *MyPage
 var gossiperNode *structs.Gossiper
 var receiveChanel = make(chan []byte)
-var sendChanel = make(chan []byte)
+var sendMessageChanel = make(chan []byte)
+var sendPeerChanel = make(chan []byte)
 // type OriginTextPair struct {
 //   Origin string
 //   Text string
@@ -49,7 +57,7 @@ func latestRumomrMessageHandler(w http.ResponseWriter, r *http.Request) {
     if err != nil {
       fmt.Println("Error when serializing to json: ", err)
     }
-    sendChanel <- msgJSON
+    sendMessageChanel <- msgJSON
   }
 }
 
@@ -65,7 +73,15 @@ func peersHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     w.Write(msgListJSON)
   case "POST":
-
+    r.ParseForm()
+    fmt.Println(r.Form)
+    ipPort := strings.Split(r.FormValue("NewNode"), ":")
+    sendPeer := node{IP: ipPort[0], Port: ipPort[1]}
+    peerJSON, err := json.Marshal(sendPeer)
+    if err != nil {
+      fmt.Println("Error when serializing to json: ", err)
+    }
+    sendPeerChanel <- peerJSON
   }
 }
 
@@ -96,7 +112,7 @@ func HandleWebClientMessages(UIPort string) {
         fmt.Println("Error when deserializing from json: ", err)
       }
       fmt.Println("Number of paris received = ", len(originTxtPairs))
-    case newMsgToSend := <- sendChanel:
+    case newMsgToSend := <- sendMessageChanel:
       var originTxtPair structs.OriginTextPair
       err := json.Unmarshal(newMsgToSend, &originTxtPair)
       if err != nil {
@@ -104,8 +120,21 @@ func HandleWebClientMessages(UIPort string) {
       }
       fmt.Println("origin = ", originTxtPair.Origin, " text = ", originTxtPair.Text)
       sendMsgToNode(UIPort, originTxtPair.Text)
+    case newPeer := <- sendPeerChanel:
+      var ipPort node
+      err := json.Unmarshal(newPeer, &ipPort)
+      if err != nil {
+        fmt.Println("Error when deserializing from peer json:", err)
+      }
+      addPeer(&ipPort)
     }
   }
+}
+
+func addPeer (peer *node) {
+  addr := peer.IP + ":" + peer.Port
+  gossiperNode.Peers[addr] = true
+  fmt.Println("PEERS " + helpers.JoinMapKeys(gossiperNode.Peers))
 }
 
 func sendMsgToNode (UIPort string, msg string) {

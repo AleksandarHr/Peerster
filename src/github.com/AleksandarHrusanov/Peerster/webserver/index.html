@@ -6,7 +6,7 @@
     <h2>Boxes</h2>
       ChatBox: <textarea rows="10" cols="100" id="chatBox"> </textarea><br>
       NodeBox: <textarea rows="10" cols="30" id="nodeBox"> </textarea><br>
-      ID_Box: <input type="text" value={{.PeerID}} name="idBox"><br>
+      ID_Box: <input type="text" id="idBox"><br>
 
     <h2>Buttons</h2>
       <!-- Messages: {{range $key, $value := .Messages}}
@@ -19,6 +19,8 @@
 
       <input id="node" type="text" name="newNode">
       <button id="nodeButton" type="submit">Add New Node</button><br>
+
+      <button id="getNewMessagesButton" type="submit">Get Latest Messages</button><br>
   </body>
 </html>
 
@@ -47,6 +49,17 @@
       });
       $("#nodeBox").text($("#nodeBox").val() + $("#node").val()+ "\n");
       $("#node").val('').attr('value','')
+    });
+    $("#getNewMessagesButton").click(function() {
+      $.ajax
+      ({
+        url: '/messages',
+        type: "GET",
+        contentType: "application/x-www-form-urlencoded",
+        dataType: "json",
+        data: {Messages: $("#node").val()}
+      });
+      $("#chatBox").text($("#chatBox").val() + $("#msg").val()+ "\n");
     });
   });
 </script>
