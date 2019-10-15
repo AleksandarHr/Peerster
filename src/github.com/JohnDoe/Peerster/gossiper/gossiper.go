@@ -221,7 +221,7 @@ func HandleAntiEntropy(gossiper *structs.Gossiper) {
     defer ticker.Stop()
     timeoutChanel := make(chan bool)
     go func() {
-      time.Sleep(10 * time.Second)
+      time.Sleep(5 * time.Second)
       timeoutChanel <- true
     }()
     select{
