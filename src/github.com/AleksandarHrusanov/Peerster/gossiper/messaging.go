@@ -27,7 +27,7 @@ func chooseRandomPeer (gossiper *structs.Gossiper) string {
 
 
 func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddress string) {
-  statusPacket := structs.StatusPacket{Want: gossiper.Want}
+  statusPacket := structs.StatusPacket{Want: gossiper.GossiperStatus.Want}
   gossipPacket := structs.GossipPacket{Status: &statusPacket}
   sendPacket(gossiper, &gossipPacket, peerSenderAddress)
 }
@@ -35,7 +35,6 @@ func sendAcknowledgementStatusPacket (gossiper *structs.Gossiper, peerSenderAddr
 // When the original sender receives a status packet from the receiver, compare its own status to it
 //    and return ' the first ' rumor which the receiver does not have
 func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus *[]structs.PeerStatus) *structs.PeerStatus {
-
   gossiperStatusMap := helpers.ConvertPeerStatusVectorClockToMap(*gossiperStatus)
   receivedStatusMap := helpers.ConvertPeerStatusVectorClockToMap(*receivedStatus)
   returnStatus := structs.PeerStatus{Identifier: "", NextID: 0}
@@ -46,12 +45,14 @@ func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus 
       //    the receiver node has none at all - send rumor (k, 1)
       returnStatus.Identifier = k
       returnStatus.NextID = 1
+      break;
     } else {
       // both gossiper/sender node and the receiver node have at least one message
       //    with an origin k. compare the NextID
       if v > val {
         returnStatus.Identifier = k
         returnStatus.NextID = val
+        break;
       }
     }
   }

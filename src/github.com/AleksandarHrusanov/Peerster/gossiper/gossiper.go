@@ -149,7 +149,6 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
       ticker = time.NewTicker(time.Second)
     case t := <- timeoutChanel:
       if t {
-        fmt.Println("Timeout occured")
         initiateRumorMongering(gossiper, packet)
         break;
       }
@@ -229,8 +228,7 @@ func HandleAntiEntropy(gossiper *structs.Gossiper, duration time.Duration) {
     select{
     case t := <- timeoutChanel:
       if t {
-        fmt.Println("Anti entropy timeout occured")
-        sp := &structs.StatusPacket{Want: gossiper.Want}
+        sp := &structs.StatusPacket{Want: gossiper.GossiperStatus.Want}
         pckt := &structs.GossipPacket{Status: sp}
         chosenPeer := chooseRandomPeer(gossiper)
         if chosenPeer == "" {
@@ -263,16 +261,18 @@ func updateSeenMessages (gossiper *structs.Gossiper, newRumor *structs.RumorMess
 
 
 func updatePeerStatusList(gossiper *structs.Gossiper, status *structs.PeerStatus) {
+  gossiper.GossiperStatus.Lck.Lock()
   alreadyExisted := false
   // Iterate over the vector clock - if an entry with the same origin exists, substitute with the new status
-  for i := 0; i < len(gossiper.Want); i++ {
-    if gossiper.Want[i].Identifier == status.Identifier {
-      gossiper.Want[i] = *status
+  for i := 0; i < len(gossiper.GossiperStatus.Want); i++ {
+    if gossiper.GossiperStatus.Want[i].Identifier == status.Identifier {
+      gossiper.GossiperStatus.Want[i] = *status
       alreadyExisted = true
     }
   }
   // if an entry with the same origin does not exist, append the status object to the end of the slice
   if !alreadyExisted {
-    gossiper.Want = append(gossiper.Want, *status)
+    gossiper.GossiperStatus.Want = append(gossiper.GossiperStatus.Want, *status)
   }
+  gossiper.GossiperStatus.Lck.Unlock()
 }

@@ -27,36 +27,27 @@ func handleIncomingRumorPacket(gossiper *structs.Gossiper, packet *structs.Gossi
     helpers.WriteToStandardOutputWhenRumorMessageReceived(gossiper, packet, senderAddr)
     // If this is the first rumor packet of a rumormongering session, update the map of chanels of this node
     gossiper.MapHandler <- senderAddr
-    updateSeenMessages(gossiper, rumor)
-    // Update PeerStatus information
-    peerStatus := structs.CreateNewPeerStatusPair(rumor.Origin, uint32(rumor.ID + 1))
-    updatePeerStatusList(gossiper, peerStatus)
+
+    // if rumor.ID == uint32(len(gossiper.MyMessages.Messages[rumor.Origin]) + 1) {
+      updateSeenMessages(gossiper, rumor)
+      // Update PeerStatus information
+      peerStatus := structs.CreateNewPeerStatusPair(rumor.Origin, uint32(rumor.ID + 1))
+      updatePeerStatusList(gossiper, peerStatus)
+      // send the just-received rumor to a random known peer
+      go initiateRumorMongering(gossiper, packet)
+    // }
 
     // Send status packet back to the original sender peer
-    status := structs.CreateNewStatusPacket(gossiper.Want)
+    status := structs.CreateNewStatusPacket(gossiper.GossiperStatus.Want)
     statusPacket := structs.GossipPacket{Status: status}
     sendPacket(gossiper, &statusPacket, senderAddr)
-
-    // send the just-received rumor to a random known peer
-    go initiateRumorMongering(gossiper, packet)
-  }
-}
-
-func printAllSeenMsg(gossiper *structs.Gossiper) {
-  gossiper.MyMessages.Lck.Lock()
-  defer gossiper.MyMessages.Lck.Unlock()
-
-  fmt.Println("PRINTING ALL SEEN MESSAGES FOR CURRENT NODE")
-  for k, v := range gossiper.MyMessages.Messages {
-    fmt.Println("peer ", k, " #msg ", len(v))
   }
 }
 
 func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.GossipPacket, senderAddr string) {
   status := packet.Status
   helpers.WriteToStandardOutputWhenStatusMessageReceived(gossiper, packet, senderAddr)
-  // printAllSeenMsg(gossiper)
-  newRumorStatuts := getStatusForNextRumor(&gossiper.Want, &status.Want)
+  newRumorStatuts := getStatusForNextRumor(&gossiper.GossiperStatus.Want, &status.Want)
   newRumorToSend := getRumorFromSeenMessages(gossiper, newRumorStatuts)
   if newRumorToSend != nil {
     // Sender has more rumors to send
@@ -64,10 +55,10 @@ func handleIncomingStatusPacket(gossiper *structs.Gossiper, packet *structs.Goss
     go sendRumorAndWaitForStatusOrTimeout(gossiper, &nextPacket, senderAddr)
     } else {
       // check if the original sender has seen all of the original receiver's messages
-      reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.Want)
+      reverseSendingRumorStatus := getStatusForNextRumor(&status.Want, &gossiper.GossiperStatus.Want)
       if reverseSendingRumorStatus.Identifier != "" && reverseSendingRumorStatus.NextID != 0 {
         // original sender has not seen all of receiver's messages so sends a status packet to it
-        statusToSendBack := structs.CreateNewStatusPacket(gossiper.Want)
+        statusToSendBack := structs.CreateNewStatusPacket(gossiper.GossiperStatus.Want)
         statusPacket := structs.GossipPacket{Status: statusToSendBack}
         sendPacket(gossiper, &statusPacket, senderAddr)
       } else {
