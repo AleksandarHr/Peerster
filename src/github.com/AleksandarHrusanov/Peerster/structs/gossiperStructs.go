@@ -42,6 +42,23 @@ type FlagsInformation struct {
   AntiEntropy   time.Duration
 }
 
+
+// =======================================================================================
+// =======================================================================================
+//                                Web Functions
+// =======================================================================================
+// =======================================================================================
+
+/*GetLatestRumorMessagesList - a function */
+func (gossiper *Gossiper) GetLatestRumorMessagesList() []RumorMessage{
+  msgs := []RumorMessage{}
+  rmr := RumorMessage{Origin: "Home", ID: 2, Text: "Message"}
+  gossiper.MongeringMessages["Artificial"] = rmr
+  for _, val := range gossiper.MongeringMessages {
+    msgs = append(msgs, val)
+  }
+  return msgs
+}
 // ==================================================================
 // ==================================================================
 //                            Constructors
