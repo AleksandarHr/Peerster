@@ -46,12 +46,14 @@ func getStatusForNextRumor(gossiperStatus *[]structs.PeerStatus, receivedStatus 
       //    the receiver node has none at all - send rumor (k, 1)
       returnStatus.Identifier = k
       returnStatus.NextID = 1
+      break;
     } else {
       // both gossiper/sender node and the receiver node have at least one message
       //    with an origin k. compare the NextID
       if v > val {
         returnStatus.Identifier = k
         returnStatus.NextID = val
+        break;
       }
     }
   }

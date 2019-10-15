@@ -18,7 +18,7 @@ func HandleFlags() (*structs.FlagsInformation) {
   var nameFlag = flag.String("name", "new_node", "name of the gossiper")
   var peersFlag = flag.String("peers", "", "comma separated list of peers of the form ip:port")
   var simpleFlag = flag.Bool("simple", false, "run gossiper in simple mode")
-  var antiEntropyDurationFlag = flag.Int64("antiEntropy", 10, "duration in seconds for anti entropy timeout")
+  var antiEntropyDurationFlag = flag.Int64("antiEntropy", 3, "duration in seconds for anti entropy timeout")
 
   // Parse all flagse
   flag.Parse()
@@ -50,14 +50,17 @@ func JoinMapKeys (m map[string]bool) string {
 
 /*AlreadySeenMessage - a function to check if a gossiper has already seen a certain message*/
 func AlreadySeenMessage (gossiper *structs.Gossiper, rumor *structs.RumorMessage) bool {
+  gossiper.MyMessages.Lck.Lock()
   msgID := rumor.ID
   msgOrigin := rumor.Origin
+  msgText := rumor.Text
   alreadySeen := false
-  for _, msg := range gossiper.Want {
-    if msg.Identifier == msgOrigin {
-      alreadySeen = (msgID < msg.NextID)
+  for _, msg := range gossiper.MyMessages.Messages[msgOrigin] {
+    if msg.ID == msgID && msg.Text == msgText {
+      alreadySeen = true
     }
   }
+  gossiper.MyMessages.Lck.Unlock()
   return alreadySeen
 }
 
@@ -145,6 +148,7 @@ func WriteToStandardOutputWhenStatusMessageReceived (gossiper *structs.Gossiper,
   fmt.Println("STATUS from " +
               senderAddress +
               statusString.String())
+  fmt.Println("PEERS " + JoinMapKeys(gossiper.Peers))
 }
 
 /*WriteToStandardOutputWhenFlippedCoin - comment

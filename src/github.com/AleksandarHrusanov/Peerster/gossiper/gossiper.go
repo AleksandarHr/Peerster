@@ -149,7 +149,6 @@ func mongeringTimeout (gossiper *structs.Gossiper, chosenPeer string, packet *st
       ticker = time.NewTicker(time.Second)
     case t := <- timeoutChanel:
       if t {
-        fmt.Println("Timeout occured")
         initiateRumorMongering(gossiper, packet)
         break;
       }
@@ -229,7 +228,6 @@ func HandleAntiEntropy(gossiper *structs.Gossiper, duration time.Duration) {
     select{
     case t := <- timeoutChanel:
       if t {
-        fmt.Println("Anti entropy timeout occured")
         sp := &structs.StatusPacket{Want: gossiper.Want}
         pckt := &structs.GossipPacket{Status: sp}
         chosenPeer := chooseRandomPeer(gossiper)
