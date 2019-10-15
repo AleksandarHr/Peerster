@@ -94,7 +94,7 @@ func StartWebServer(gossiper *structs.Gossiper) {
   http.HandleFunc("/messages", latestRumomrMessageHandler)
   http.HandleFunc("/nodes", peersHandler)
   for {
-    err := http.ListenAndServe(":3000", nil)
+    err := http.ListenAndServe(":8080", nil)
     if err !=nil {
 
     }
