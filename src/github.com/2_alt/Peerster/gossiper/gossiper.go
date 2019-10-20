@@ -368,63 +368,58 @@ func peersListener(gossiper *Gossiper, simpleMode bool) {
 
 		if !simpleMode {
 			if gossipPacket.Rumor != nil {
-				if helpers.IsRouteRumor(gossipPacket.Rumor) {
-					helpers.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
-						gossiper.destinationTable, gossiper.knownRumors, false, false)
-				} else {
-					// Print RumorFromPeer output
-					helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor, fromAddr, gossiper.knownPeers)
+				// Print RumorFromPeer output
+				helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor, fromAddr, gossiper.knownPeers)
 
-					// Check if the Rumor or its Origin is known
-					rumorIsKnown, originIsKnown, wantedID := helpers.IsRumorKnown(gossiper.want, gossipPacket.Rumor)
+				// Check if the Rumor or its Origin is known
+				rumorIsKnown, originIsKnown, wantedID := helpers.IsRumorKnown(gossiper.want, gossipPacket.Rumor)
 
-					if rumorIsKnown {
-						// Do nothing
+				if rumorIsKnown {
+					// Do nothing
 
-					} else if originIsKnown && wantedID == gossipPacket.Rumor.ID {
-						// Update wantedID in Want slice
+				} else if originIsKnown && wantedID == gossipPacket.Rumor.ID {
+					// Update wantedID in Want slice
+					updateWant(gossiper, gossipPacket.Rumor.Origin)
+
+				} else if originIsKnown && wantedID < gossipPacket.Rumor.ID {
+					// Do nothing
+
+				} else if !originIsKnown {
+					if gossipPacket.Rumor.ID == 1 {
+						// If ID = 1, new Rumor: add it to list of known rumors
+						// and create new PeerStatus
 						updateWant(gossiper, gossipPacket.Rumor.Origin)
 
-					} else if originIsKnown && wantedID < gossipPacket.Rumor.ID {
-						// Do nothing
-
-					} else if !originIsKnown {
-						if gossipPacket.Rumor.ID == 1 {
-							// If ID = 1, new Rumor: add it to list of known rumors
-							// and create new PeerStatus
-							updateWant(gossiper, gossipPacket.Rumor.Origin)
-
-						} else {
-							// If ID > 1, create new PeerStatus
-							newPeerStatus := core.PeerStatus{
-								Identifier: gossipPacket.Rumor.Origin,
-								NextID:     uint32(1),
-							}
-							gossiper.want = append(gossiper.want, newPeerStatus)
+					} else {
+						// If ID > 1, create new PeerStatus
+						newPeerStatus := core.PeerStatus{
+							Identifier: gossipPacket.Rumor.Origin,
+							NextID:     uint32(1),
 						}
+						gossiper.want = append(gossiper.want, newPeerStatus)
 					}
-
-
-					// Update destiantionTable
-					helpers.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
-						gossiper.destinationTable, gossiper.knownRumors, originIsKnown, true)
-
-
-					// Send status
-					sendStatus(gossiper, fromAddr)
-
-					if !rumorIsKnown {
-						if len(gossiper.knownPeers) > 0 {
-							// Pick a random address and send the rumor
-							chosenAddr := helpers.PickRandomInSlice(gossiper.knownPeers)
-							sendRumor(*gossipPacket.Rumor, gossiper, chosenAddr)
-							helpers.PrintOutputMongering(chosenAddr)
-						}
-					}
-
-					// Add Rumor to list of known Rumors if it is not already there
-					addRumorToKnownRumors(gossiper, *gossipPacket.Rumor)
 				}
+
+
+				// Update destiantionTable
+				helpers.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
+					gossiper.destinationTable, gossiper.knownRumors, originIsKnown, !helpers.IsRouteRumor(gossipPacket.Rumor))
+
+
+				// Send status
+				sendStatus(gossiper, fromAddr)
+
+				if !rumorIsKnown {
+					if len(gossiper.knownPeers) > 0 {
+						// Pick a random address and send the rumor
+						chosenAddr := helpers.PickRandomInSlice(gossiper.knownPeers)
+						sendRumor(*gossipPacket.Rumor, gossiper, chosenAddr)
+						helpers.PrintOutputMongering(chosenAddr)
+					}
+				}
+
+				// Add Rumor to list of known Rumors if it is not already there
+				addRumorToKnownRumors(gossiper, *gossipPacket.Rumor)
 			} else if gossipPacket.Status != nil {
 				// Print STATUS message
 				helpers.PrintOutputStatus(fromAddr, gossipPacket.Status.Want, gossiper.knownPeers)
@@ -607,7 +602,7 @@ func clientListener(gossiper *Gossiper, simpleMode bool) {
 }
 
 // StartGossiper Start the gossiper
-func StartGossiper(gossiperPtr *Gossiper, simplePtr *bool, antiEntropyPtr *int) {
+func StartGossiper(gossiperPtr *Gossiper, simplePtr *bool, antiEntropyPtr *int, routeRumorPtr *int) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Listen from client and peers
@@ -624,7 +619,7 @@ func StartGossiper(gossiperPtr *Gossiper, simplePtr *bool, antiEntropyPtr *int) 
 	defer gossiperPtr.localConn.Close()
 
 	// Send the initial route rumor message on startup
-	generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, 1)
+	go routeRumorHandler(gossiperPtr, routeRumorPtr)
 
 	// Anti-entropy
 	if *antiEntropyPtr > 0 {
@@ -642,7 +637,6 @@ func StartGossiper(gossiperPtr *Gossiper, simplePtr *bool, antiEntropyPtr *int) 
 		}
 	}
 }
-
 
 // ========================================================
 // ========================================================
@@ -668,5 +662,16 @@ func generateAndSendRouteRumor(gossiperPtr *Gossiper, rumorOrigin string, rumorI
 		packetBytes, err := protobuf.Encode(&packetToSend)
 		helpers.HandleErrorFatal(err)
 		helpers.ConnectAndSend(chosenAddr, gossiperPtr.conn, packetBytes)
+	}
+}
+
+func routeRumorHandler(gossiperPtr *Gossiper, routeRumorPtr *int) {
+	generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, 1)
+	if *routeRumorPtr > 0 {
+		for {
+			time.Sleep(time.Duration(*routeRumorPtr) * time.Second)
+			generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, gossiperPtr.currentRumorID)
+			gossiperPtr.currentRumorID++;
+		}
 	}
 }
