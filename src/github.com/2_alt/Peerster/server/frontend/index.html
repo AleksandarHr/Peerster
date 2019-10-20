@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Peerster Layout</Title>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script>
+            function keepScrollBottom() {
+                var divPeer = document.getElementById("peer_list_id")
+                var divChat = document.getElementById("chat_id")
+                divPeer.scrollTop = divPeer.scrollHeight;
+                divChat.scrollTop = divChat.scrollHeight;
+            }
+            
+            function clickSendButton() {
+                $("#send_button_id").click(function() {
+                    var text = document.getElementById("send_message_id").value;
+                    if (text != "") {
+                        // Send to server and refresh list
+                        $.ajax({
+                            url: "http://localhost:8080/message",
+                            type: "POST",
+                            contentType: "application/json",
+                            data: JSON.stringify(text),
+                            dataType: "json",
+                        });
+                        refreshRumors(true);
+                    }
+                    keepScrollBottom();
+                });
+            }
+
+            function clickAddButton() {
+                $("#add_button_id").click(function() {
+                    // Add text to list
+                    var nodeAddr = document.getElementById("add_node_id").value;
+                    if (nodeAddr != "") {
+                        // Send to server and refresh list
+                        $.ajax({
+                            url: "http://localhost:8080/node",
+                            type: "POST",
+                            contentType: "application/json",
+                            data: JSON.stringify(nodeAddr),
+                            dataType: "json",
+                        });
+                        refreshNodes(true);
+                    }
+                    keepScrollBottom();
+                });
+            }
+
+            function getID() {
+                $.getJSON("http://localhost:8080/id", function(data) {
+                    $("#ownID_id").text(data)
+                });
+            }
+
+            function refreshNodes(keepScrollDown) {
+                $.getJSON("http://localhost:8080/node", function(data) {
+                    data = data + "";
+                    var itemArray = data.split(",");
+                    $("#peer_list_id").html("");
+                    for (var i = 0; i < itemArray.length; i++) {
+                        $("#peer_list_id").append(itemArray[i] + "<br>");
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refreshRumors(keepScrollDown) {
+                $.getJSON("http://localhost:8080/message", function(data) {
+                    var json
+                    $("#chat_id").html("");
+                    for (i = 0; i < data.length; i++) {
+                        var values = Object.keys(data[i]).map(function(key) {
+                            return data[i][key];
+                        });
+                        $("#chat_id").append(values[0] + " : " + values[2] + "<br>")
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refresh() {
+                // Nodes
+                refreshNodes(false);
+                // Rumors
+                refreshRumors(false);
+            }
+
+            // Refresh chat and nodes from server
+            setInterval("refresh();", 500)
+
+        </script>
+    </head>
+
+    <body>
+
+        <table width="100%" border="0">
+            
+            <!--Own ID-->
+            <tr>
+                <td colspan="2" bgcolor="#0c4f0e">
+                    <h1 id="ownID_id" align="center" style="color: white">
+                        ID: ?
+                    </h1>
+                    <!--Get own ID from server-->
+                    <script>
+                        getID();
+                    </script>
+                </td>
+            </tr>
+
+            <tr valign="top">
+                <!--Peer list-->
+                <td bgcolor="#eee" width="250">
+                    <table>
+                        <div id="peer_list_id" style="height:250px;
+                        width:400px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+            
+                <!--Chat-->
+                <td bgcolor="#eee" height="250">
+                    <table>
+                        <div id="chat_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+            </tr>
+
+            <!--Forms and buttons-->
+            <tr valign="top">
+                <td>
+                    <form name="addNodeForm">
+                        Add node: <input type="text" id="add_node_id"
+                             name="node"> <!--onclick="this.form.reset()">-->
+                    </form>
+                    <button id="add_button_id">Add</button>
+                    
+                    <!--Send new node informations to server and refresh list-->
+                    <script>
+                        clickAddButton();
+                    </script>
+                </td>
+
+                <td>
+                    <form name="sendMessageForm">
+                        Write your message: <input id="send_message_id"
+                             type="text" name="message" onclick="this.form.reset()">
+                    </form>
+                    <button id="send_button_id">Send</button>
+                    
+                    <!--Send rumor to server and refresh chat-->
+                    <script>
+                        clickSendButton();
+                    </script>
+                </td>
+            </tr>
+
+        </table>
+    </body>
+
+</html>
