@@ -634,3 +634,31 @@ func StartGossiper(gossiperPtr *Gossiper, simplePtr *bool, antiEntropyPtr *int) 
 		}
 	}
 }
+
+
+// ========================================================
+// ========================================================
+//						Homework 2 functions
+// ========================================================
+// ========================================================
+
+// A function to generate a route rumor (e.g. with empty Text field)
+//		and send it to a randomly chosen known peer
+func generateAndSendRouteRumor(gossiperPtr *Gossiper, rumorOrigin string, rumorID uint32) {
+	chosenAddr := ""
+	if len(gossiperPtr.knownPeers) > 0 {
+		chosenAddr = helpers.PickRandomInSlice(gossiperPtr.knownPeers)
+	}
+
+	if strings.Compare(chosenAddr, "") != 0 {
+		newRouteRumor := core.RumorMessage{
+			Origin: rumorOrigin,
+			ID:     rumorID,
+			Text:		"",
+		}
+		packetToSend := core.GossipPacket{Rumor: &newRouteRumor}
+		packetBytes, err := protobuf.Encode(&packetToSend)
+		helpers.HandleErrorFatal(err)
+		helpers.ConnectAndSend(chosenAddr, gossiperPtr.conn, packetBytes)
+	}
+}
