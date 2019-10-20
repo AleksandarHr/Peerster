@@ -25,9 +25,9 @@ func HandleErrorNonFatal(err error) {
 
 // ClientConnectAndSend connects to the given gossiper's address and send the text to it.
 // This function is used by the server to send a message to the gossiper.
-func ClientConnectAndSend(remoteAddr string, text *string) {
+func ClientConnectAndSend(remoteAddr string, text *string, destination *string) {
 	// Create GossipPacket and encapsulate message into it
-	msg := &core.Message{Text: *text}
+	msg := &core.Message{Text: *text, Destination: destination}
 	packetBytes, err := protobuf.Encode(msg)
 	HandleErrorFatal(err)
 

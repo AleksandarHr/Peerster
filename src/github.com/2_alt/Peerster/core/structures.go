@@ -9,7 +9,10 @@ type SimpleMessage struct {
 
 // Message is sent between client and gossiper
 type Message struct {
-	Text string
+	Text 				string
+	Destination *string
+	File				*string
+	Request			*[]byte
 }
 
 // RumorMessage sent between gossipers
@@ -28,6 +31,15 @@ type PeerStatus struct {
 // StatusPacket contains PeerStatus
 type StatusPacket struct {
 	Want []PeerStatus
+}
+
+// PrivateMessage contains a private message with a destination
+type PrivateMessage struct {
+	Origin			string
+	ID					uint32
+	Text				string
+	Destination	string
+	HopLimit		uint32
 }
 
 // GossipPacket standard wrapper for communications
