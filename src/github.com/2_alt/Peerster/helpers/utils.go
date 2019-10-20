@@ -201,19 +201,21 @@ func VerifyRemoveDuplicateAddrInSlice(sx []string) []string {
 
 //UpdateDestinationTable - a function to update destination table (if needed) on receiving a rumor
 func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
-	destinationTable map[string]string, knownRumors []core.RumorMessage, originIsKnown bool) {
+	destinationTable map[string]string, knownRumors []core.RumorMessage, originIsKnown bool, toPrint bool) {
 
 	if !originIsKnown {
 		// First rumor from Origin
 		destinationTable[rumorOrigin] = fromAddr
-		PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+		if toPrint {
+			PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+		}
 	} else {
 		// Update table if the sequence number of the rumor is greater than any known rumors' ID
 		//	from the same origin
 		toUpdate := true
 		for _, r := range knownRumors {
 			if strings.Compare(r.Origin, rumorOrigin) == 0 {
-				if r.ID > rumorID {
+				if r.ID >= rumorID {
 					toUpdate = false
 				}
 			}
@@ -221,7 +223,14 @@ func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
 
 		if toUpdate {
 			destinationTable[rumorOrigin] = fromAddr
-			PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+			if toPrint{
+				PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+			}
 		}
 	}
+}
+
+//IsRouteRumor - a function which returns true if the rumor is a route rumor (e.g. empty Text field)
+func IsRouteRumor(rumor *core.RumorMessage) bool {
+	return (strings.Compare(rumor.Text, "") == 0)
 }
