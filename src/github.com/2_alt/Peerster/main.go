@@ -20,6 +20,8 @@ func main() {
 		"run gossiper in simple broadcast mode")
 	antiEntropyPtr := flag.Int("antiEntropy", 10,
 		"Use the given timeout in seconds for anti-entropy.")
+	routeRumorPtr := flag.Int("rtimer", 0,
+		"Use the given time period in seconds to send a route rumor.")
 	flag.Parse()
 
 	// Check that the gossiper has a name
@@ -39,5 +41,5 @@ func main() {
 
 	// Start server
 	go server.StartServer(gossiperPtr)
-	gossiper.StartGossiper(gossiperPtr, simplePtr, antiEntropyPtr)
+	gossiper.StartGossiper(gossiperPtr, simplePtr, antiEntropyPtr, routeRumorPtr)
 }
