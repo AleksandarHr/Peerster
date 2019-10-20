@@ -192,3 +192,36 @@ func VerifyRemoveDuplicateAddrInSlice(sx []string) []string {
 	}
 	return newList
 }
+
+// ========================================================
+// ========================================================
+//						Homework 2 functions
+// ========================================================
+// ========================================================
+
+//UpdateDestinationTable - a function to update destination table (if needed) on receiving a rumor
+func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
+	destinationTable map[string]string, knownRumors []core.RumorMessage, originIsKnown bool) {
+
+	if !originIsKnown {
+		// First rumor from Origin
+		destinationTable[rumorOrigin] = fromAddr
+		PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+	} else {
+		// Update table if the sequence number of the rumor is greater than any known rumors' ID
+		//	from the same origin
+		toUpdate := true
+		for _, r := range knownRumors {
+			if strings.Compare(r.Origin, rumorOrigin) == 0 {
+				if r.ID > rumorID {
+					toUpdate = false
+				}
+			}
+		}
+
+		if toUpdate {
+			destinationTable[rumorOrigin] = fromAddr
+			PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+		}
+	}
+}

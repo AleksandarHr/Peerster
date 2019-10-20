@@ -70,3 +70,15 @@ func PrintOutputInSyncWith(addr string) {
 func PrintOutputFlippedCoin(addr string) {
 	fmt.Println("FLIPPED COIN sending rumor to " + addr)
 }
+
+
+// ========================================================
+// ========================================================
+//						Homework 2 functions
+// ========================================================
+// ========================================================
+
+//PrintOutputUpdatingDSDV print on the console
+func PrintOutputUpdatingDSDV(peerName string, ipPort string) {
+	fmt.Println("DSDV " + peerName + " " + ipPort)
+}

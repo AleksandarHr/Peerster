@@ -22,17 +22,18 @@ type MongeringStatus struct {
 
 // Gossiper Struct of a gossiper
 type Gossiper struct {
-	address         *net.UDPAddr
-	conn            *net.UDPConn
-	Name            string
-	knownPeers      []string
-	knownRumors     []core.RumorMessage
-	want            []core.PeerStatus
-	localAddr       *net.UDPAddr
-	localConn       *net.UDPConn
-	currentRumorID  uint32
-	mongeringStatus []*MongeringStatus
-	uiPort          string
+	address         	*net.UDPAddr
+	conn            	*net.UDPConn
+	Name            	string
+	knownPeers      	[]string
+	knownRumors     	[]core.RumorMessage
+	want            	[]core.PeerStatus
+	localAddr       	*net.UDPAddr
+	localConn       	*net.UDPConn
+	currentRumorID  	uint32
+	mongeringStatus 	[]*MongeringStatus
+	uiPort          	string
+	destinationTable	map[string]string
 }
 
 // GetUIPort Get the gossiper's UI port
@@ -174,17 +175,18 @@ func NewGossiper(address string, name string,
 	helpers.HandleErrorFatal(err)
 
 	return &Gossiper{
-		address:         udpAddr,
-		conn:            udpConn,
-		Name:            name,
-		knownPeers:      knownPeersList,
-		knownRumors:     make([]core.RumorMessage, 0),
-		want:            make([]core.PeerStatus, 0),
-		localAddr:       udpAddrLocal,
-		localConn:       udpConnLocal,
-		currentRumorID:  uint32(0),
-		mongeringStatus: make([]*MongeringStatus, 0),
-		uiPort:          UIPort,
+		address:         		udpAddr,
+		conn:            		udpConn,
+		Name:            		name,
+		knownPeers:      		knownPeersList,
+		knownRumors:     		make([]core.RumorMessage, 0),
+		want:            		make([]core.PeerStatus, 0),
+		localAddr:       		udpAddrLocal,
+		localConn:       		udpConnLocal,
+		currentRumorID:  		uint32(0),
+		mongeringStatus: 		make([]*MongeringStatus, 0),
+		uiPort:          		UIPort,
+		destinationTable: 	make(map[string]string),
 	}
 }
 
@@ -397,6 +399,11 @@ func peersListener(gossiper *Gossiper, simpleMode bool) {
 						gossiper.want = append(gossiper.want, newPeerStatus)
 					}
 				}
+
+
+				// Update destiantionTable
+				helpers.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr, gossiper.destinationTable, gossiper.knownRumors, originIsKnown)
+
 
 				// Send status
 				sendStatus(gossiper, fromAddr)
