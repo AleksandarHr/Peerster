@@ -82,3 +82,8 @@ func PrintOutputFlippedCoin(addr string) {
 func PrintOutputUpdatingDSDV(peerName string, ipPort string) {
 	fmt.Println("DSDV " + peerName + " " + ipPort)
 }
+
+//PrintOutputPrivateMessage print to console
+func PrintOutputPrivateMessage(origin string, hopLimit uint32, contents string) {
+	fmt.Println("PRIVATE origin " + origin + " hop-limit " + fmt.Sprint(hopLimit) + " contents " + contents)
+}

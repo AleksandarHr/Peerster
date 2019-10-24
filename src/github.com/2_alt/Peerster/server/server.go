@@ -57,11 +57,12 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		reqBody, err := ioutil.ReadAll(r.Body)
 		helpers.HandleErrorFatal(err)
 		text := ""
+		dest := ""
 		err = json.Unmarshal(reqBody, &text)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		helpers.ClientConnectAndSend(goss.GetLocalAddr(), &text)
+		helpers.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)

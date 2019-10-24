@@ -45,7 +45,8 @@ type PrivateMessage struct {
 // GossipPacket standard wrapper for communications
 // between gossipers
 type GossipPacket struct {
-	Simple *SimpleMessage
-	Rumor  *RumorMessage
-	Status *StatusPacket
+	Simple 	*SimpleMessage
+	Rumor  	*RumorMessage
+	Status 	*StatusPacket
+	Private *PrivateMessage
 }

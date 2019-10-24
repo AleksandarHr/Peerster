@@ -533,7 +533,10 @@ func peersListener(gossiper *Gossiper, simpleMode bool) {
 					// Continue mongering test
 					if len(rumorsToFlipCoinFor) > 0 {
 						for _, rToFlip := range rumorsToFlipCoinFor {
-							if rand.Int()%2 == 0 {
+							seed := rand.NewSource(time.Now().UnixNano())
+							rng := rand.New(seed)
+							flipCoinResult := rng.Intn(2)
+							if flipCoinResult == 0 {
 								// Pick a random address and send the rumor
 								chosenAddr := helpers.PickRandomInSliceDifferentFrom(gossiper.knownPeers, fromAddr)
 								if strings.Compare(chosenAddr, "") != 0 {
@@ -577,25 +580,38 @@ func clientListener(gossiper *Gossiper, simpleMode bool) {
 
 		// Prepare the message to be sent
 		if !simpleMode {
-			// Print output
-			helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.knownPeers)
 
-			// Add rumor to list of known rumors
-			gossiper.currentRumorID++
-			newRumor := core.RumorMessage{
-				Origin: gossiper.Name,
-				ID:     gossiper.currentRumorID,
-				Text:   message.Text,
-			}
-			addRumorToKnownRumors(gossiper, newRumor)
-			updateWant(gossiper, gossiper.Name)
+			if isPrivateMessage(&message) {
+				// TODO: Handle private messages from client
+				privateMsg := createNewPrivateMessage(gossiper.Name, message.Text, message.Destination)
+				if privateMessageReachedDestination(gossiper, privateMsg) {
+					// If private message reached its destination, print to console
+					helpers.PrintOutputPrivateMessage(privateMsg.Origin, privateMsg.HopLimit, privateMsg.Text)
+				} else {
+					// If this is not the private message's destination, forward message to next hop
+					forwardPrivateMessage(gossiper, privateMsg)
+				}
+			} else {
+				// Print output
+				helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.knownPeers)
 
-			// Pick a random address and send the rumor
-			chosenAddr := ""
-			if len(gossiper.knownPeers) > 0 {
-				chosenAddr = helpers.PickRandomInSlice(gossiper.knownPeers)
-				sendRumor(newRumor, gossiper, chosenAddr)
-				helpers.PrintOutputMongering(chosenAddr)
+				// Add rumor to list of known rumors
+				gossiper.currentRumorID++
+				newRumor := core.RumorMessage{
+					Origin: gossiper.Name,
+					ID:     gossiper.currentRumorID,
+					Text:   message.Text,
+				}
+				addRumorToKnownRumors(gossiper, newRumor)
+				updateWant(gossiper, gossiper.Name)
+
+				// Pick a random address and send the rumor
+				chosenAddr := ""
+				if len(gossiper.knownPeers) > 0 {
+					chosenAddr = helpers.PickRandomInSlice(gossiper.knownPeers)
+					sendRumor(newRumor, gossiper, chosenAddr)
+					helpers.PrintOutputMongering(chosenAddr)
+				}
 			}
 		}
 	}
@@ -665,13 +681,58 @@ func generateAndSendRouteRumor(gossiperPtr *Gossiper, rumorOrigin string, rumorI
 	}
 }
 
+// A function which sends the initial route rumor on start up and then sends
+//		new route rumor periodically based on a user-specified flag
 func routeRumorHandler(gossiperPtr *Gossiper, routeRumorPtr *int) {
-	generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, 1)
 	if *routeRumorPtr > 0 {
+		// if the route rumor timer is 0, disable sending route rumors completely
+		generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, 1)
 		for {
 			time.Sleep(time.Duration(*routeRumorPtr) * time.Second)
 			generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, gossiperPtr.currentRumorID)
 			gossiperPtr.currentRumorID++;
 		}
 	}
+}
+
+// Given a message from the client, return true if it is private
+func isPrivateMessage(clientMsg *core.Message) bool {
+	return (strings.Compare(*(clientMsg.Destination), "") != 0)
+}
+
+// A constructor for PrivateMessages - defaultID = 0 and defaultHopLimit = 10
+func createNewPrivateMessage(origin string, msg string, dest *string) *core.PrivateMessage {
+	defaultID := uint32(0) // to enforce NOT sequencing
+	defaultHopLimit := uint32(10)
+	privateMsg := core.PrivateMessage{Origin: origin, ID: defaultID, Text: msg, Destination: *dest, HopLimit: defaultHopLimit}
+	return &privateMsg
+}
+
+// Given a private message, returns true if the current gossiper is it's destination
+func privateMessageReachedDestination(gossiperPtr *Gossiper, msg *core.PrivateMessage) bool {
+	return (strings.Compare(gossiperPtr.Name, msg.Destination) == 0)
+}
+
+// A function to forward a private message to the corresponding next hop
+func forwardPrivateMessage(gossiperPtr *Gossiper, msg *core.PrivateMessage){
+
+	if msg.HopLimit == 0 {
+		// if we have reached the HopLimit, drop the message
+		return
+	}
+
+	forwardingAddress := gossiperPtr.destinationTable[msg.Destination]
+	// If current node has no information about next hop to the destination in question
+	if strings.Compare(forwardingAddress, "") == 0 {
+		panic("ERROR")
+	}
+
+	// Decrement the HopLimit right before forwarding the packet
+	msg.HopLimit--
+	// Encode and send packet
+	packetToSend := core.GossipPacket{Private: msg}
+	packetBytes, err := protobuf.Encode(&packetToSend)
+	helpers.HandleErrorFatal(err)
+	helpers.ConnectAndSend(forwardingAddress, gossiperPtr.conn, packetBytes)
+
 }
