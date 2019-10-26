@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 	"github.com/dedis/protobuf"
@@ -367,6 +368,10 @@ func peersListener(gossiper *Gossiper, simpleMode bool) {
 		}
 
 		if !simpleMode {
+			if gossipPacket.Private != nil {
+				// Handle incoming private message from another peer
+				handlePrivateMessage(gossiper, gossipPacket.Private)
+			}
 			if gossipPacket.Rumor != nil {
 				// Print RumorFromPeer output
 				helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor, fromAddr, gossiper.knownPeers)
@@ -581,16 +586,10 @@ func clientListener(gossiper *Gossiper, simpleMode bool) {
 		// Prepare the message to be sent
 		if !simpleMode {
 
-			if isPrivateMessage(&message) {
+			if isClientMessagePrivate(&message) {
 				// TODO: Handle private messages from client
 				privateMsg := createNewPrivateMessage(gossiper.Name, message.Text, message.Destination)
-				if privateMessageReachedDestination(gossiper, privateMsg) {
-					// If private message reached its destination, print to console
-					helpers.PrintOutputPrivateMessage(privateMsg.Origin, privateMsg.HopLimit, privateMsg.Text)
-				} else {
-					// If this is not the private message's destination, forward message to next hop
-					forwardPrivateMessage(gossiper, privateMsg)
-				}
+				handlePrivateMessage(gossiper, privateMsg)
 			} else {
 				// Print output
 				helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.knownPeers)
@@ -696,7 +695,7 @@ func routeRumorHandler(gossiperPtr *Gossiper, routeRumorPtr *int) {
 }
 
 // Given a message from the client, return true if it is private
-func isPrivateMessage(clientMsg *core.Message) bool {
+func isClientMessagePrivate(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.Destination), "") != 0)
 }
 
@@ -706,6 +705,16 @@ func createNewPrivateMessage(origin string, msg string, dest *string) *core.Priv
 	defaultHopLimit := uint32(10)
 	privateMsg := core.PrivateMessage{Origin: origin, ID: defaultID, Text: msg, Destination: *dest, HopLimit: defaultHopLimit}
 	return &privateMsg
+}
+
+func handlePrivateMessage(gossiper *Gossiper, privateMsg *core.PrivateMessage) {
+	if privateMessageReachedDestination(gossiper, privateMsg) {
+		// If private message reached its destination, print to console
+		helpers.PrintOutputPrivateMessage(privateMsg.Origin, privateMsg.HopLimit, privateMsg.Text)
+	} else {
+		// If this is not the private message's destination, forward message to next hop
+		forwardPrivateMessage(gossiper, privateMsg)
+	}
 }
 
 // Given a private message, returns true if the current gossiper is it's destination
@@ -724,7 +733,7 @@ func forwardPrivateMessage(gossiperPtr *Gossiper, msg *core.PrivateMessage){
 	forwardingAddress := gossiperPtr.destinationTable[msg.Destination]
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
-		panic("ERROR")
+		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
 	}
 
 	// Decrement the HopLimit right before forwarding the packet
