@@ -3,7 +3,6 @@ package helpers
 import (
 	"fmt"
 	"strconv"
-	"github.com/2_alt/Peerster/core"
 )
 
 // PrintOutputSimpleMessageFromClient print on the console
@@ -30,12 +29,12 @@ func PrintOutputSimpleMessageFromPeer(messageText string, senderName string,
 }
 
 // PrintOutputRumorFromPeer print on the console
-func PrintOutputRumorFromPeer(rumor *core.RumorMessage, rumorFrom string, knownPeers []string) {
+func PrintOutputRumorFromPeer(origin string, rumorFrom string, id uint32, text string, knownPeers []string) {
 	// Print first line
-	fmt.Println("RUMOR origin " + rumor.Origin +
+	fmt.Println("RUMOR origin " + origin +
 		" from " + rumorFrom +
-		" ID " + strconv.Itoa(int(rumor.ID)) +
-		" contents " + rumor.Text)
+		" ID " + strconv.Itoa(int(id)) +
+		" contents " + text)
 
 	// Print second line
 	stringPeers := CreateStringKnownPeers(knownPeers)
@@ -45,20 +44,6 @@ func PrintOutputRumorFromPeer(rumor *core.RumorMessage, rumorFrom string, knownP
 // PrintOutputMongering print on the console
 func PrintOutputMongering(withAddr string) {
 	fmt.Println("MONGERING with " + withAddr)
-}
-
-// PrintOutputStatus print on the console
-func PrintOutputStatus(fromAddr string, listOfWanted []core.PeerStatus, knownPeers []string) {
-	// Print first line
-	fmt.Print("STATUS from " + fromAddr)
-	for _, peerStatus := range listOfWanted {
-		fmt.Print(" peer " + peerStatus.Identifier + " nextID " + strconv.Itoa(int(peerStatus.NextID)))
-	}
-	fmt.Println()
-
-	// Print second line
-	stringPeers := CreateStringKnownPeers(knownPeers)
-	fmt.Println("PEERS " + stringPeers)
 }
 
 // PrintOutputInSyncWith print on the console

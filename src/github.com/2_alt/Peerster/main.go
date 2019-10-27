@@ -5,6 +5,7 @@ import (
 	"strings"
 	"github.com/2_alt/Peerster/gossiper"
 	"github.com/2_alt/Peerster/helpers"
+	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/server"
 )
 
@@ -34,7 +35,7 @@ func main() {
 	knownPeers = helpers.VerifyRemoveDuplicateAddrInSlice(knownPeers)
 
 	// Create and start gossiper
-	gossiperPtr := gossiper.NewGossiper(*gossipAddrPtr,
+	gossiperPtr := core.NewGossiper(*gossipAddrPtr,
 		*namePtr,
 		knownPeers,
 		*UIPortPtr)

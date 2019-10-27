@@ -6,13 +6,13 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"github.com/2_alt/Peerster/gossiper"
+	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 	"github.com/gorilla/mux"
 )
 
 type handlerMaker struct {
-	G *gossiper.Gossiper
+	G *core.Gossiper
 }
 
 // Get the id
@@ -62,7 +62,7 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		helpers.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
@@ -114,7 +114,7 @@ func (m *handlerMaker) nodeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartServer start the peer's server
-func StartServer(g *gossiper.Gossiper) {
+func StartServer(g *core.Gossiper) {
 
 	defaultServerPort := ":" + g.GetUIPort() // default ":8080"
 	handlerMaker := &handlerMaker{g}
