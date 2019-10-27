@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 	"github.com/dedis/protobuf"

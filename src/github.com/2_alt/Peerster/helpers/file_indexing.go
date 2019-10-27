@@ -2,8 +2,9 @@ package helpers
 import "crypto/sha256"
 import "os"
 import "fmt"
-import "io/ioutil"
-import "bufio"
+import "io"
+// import "io/ioutil"
+// import "bufio"
 
 // fixed file chunk size of 8KB
 const fixedChunkSize = uint32(8)
@@ -18,8 +19,8 @@ func scanFileInChunks(chunkSize uint32, fn string) [][]byte{
   filePath := filesFolder + fn
   file, err := os.Open(filePath)
   if err != nil {
-    fmt.Pritln("Error opening a file: ", err)
-    return
+    fmt.Println("Error opening a file: ", err)
+    return nil
   }
   defer file.Close()
 
@@ -29,7 +30,7 @@ func scanFileInChunks(chunkSize uint32, fn string) [][]byte{
     bytesRead, err := file.Read(buffer)
     if err!= nil {
       if err != io.EOF {
-        fmt.Pritln("Error reading a file: ", err)
+        fmt.Println("Error reading a file: ", err)
       }
       break
     }
@@ -41,14 +42,14 @@ func scanFileInChunks(chunkSize uint32, fn string) [][]byte{
   return fileChunks
 }
 
-func hashAllFileChunks(chunks [][]byte, numberOfChunks uint32) [sha256HashSize*numberOfChunks]byte {
-  hashedChunks := make([sha256HashSize*numberOfChunks]byte)
-  for _, chunk := range chunks {
-    currentHash := computeSha256(chunk)
-    hashedChunks = append(hashedChunks, currentHash)
-  }
+func hashAllFileChunks(chunks [][]byte, numberOfChunks uint32) []byte {
+  // hashedChunks := make([]byte, sha256HashSize*numberOfChunks)
+  // for _, chunk := range chunks {
+    // currentHash := computeSha256(chunk)
+    // hashedChunks = append(hashedChunks, currentHash)
+  // }
 
-  return hashedChunks;
+  return nil;
 }
 
 func writeHashedChunksToFile(chunks []byte) *os.File{
@@ -56,13 +57,13 @@ func writeHashedChunksToFile(chunks []byte) *os.File{
   defer file.Close()
   if err != nil {
     fmt.Println("Error creating binary metafile: ", err)
-    return
+    return nil
   }
 
-  bytesWritten, err := file.Write(chunks)
+  _, err = file.Write(chunks)
   if err != nil {
     fmt.Println("Error writing to metafile: ", err)
-    return
+    return nil
   }
 
   return file
