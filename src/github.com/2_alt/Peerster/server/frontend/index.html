@@ -12,14 +12,14 @@
                 divPeer.scrollTop = divPeer.scrollHeight;
                 divChat.scrollTop = divChat.scrollHeight;
             }
-            
+
             function clickSendButton() {
                 $("#send_button_id").click(function() {
                     var text = document.getElementById("send_message_id").value;
                     if (text != "") {
                         // Send to server and refresh list
                         $.ajax({
-                            url: "http://localhost:8080/message",
+                            url: "/message",
                             type: "POST",
                             contentType: "application/json",
                             data: JSON.stringify(text),
@@ -38,7 +38,7 @@
                     if (nodeAddr != "") {
                         // Send to server and refresh list
                         $.ajax({
-                            url: "http://localhost:8080/node",
+                            url: "/node",
                             type: "POST",
                             contentType: "application/json",
                             data: JSON.stringify(nodeAddr),
@@ -51,13 +51,13 @@
             }
 
             function getID() {
-                $.getJSON("http://localhost:8080/id", function(data) {
+                $.getJSON("/id", function(data) {
                     $("#ownID_id").text(data)
                 });
             }
 
             function refreshNodes(keepScrollDown) {
-                $.getJSON("http://localhost:8080/node", function(data) {
+                $.getJSON("/node", function(data) {
                     data = data + "";
                     var itemArray = data.split(",");
                     $("#peer_list_id").html("");
@@ -71,7 +71,7 @@
             }
 
             function refreshRumors(keepScrollDown) {
-                $.getJSON("http://localhost:8080/message", function(data) {
+                $.getJSON("/message", function(data) {
                     var json
                     $("#chat_id").html("");
                     for (i = 0; i < data.length; i++) {
@@ -102,12 +102,12 @@
     <body>
 
         <table width="100%" border="0">
-            
+
             <!--Own ID-->
             <tr>
                 <td colspan="2" bgcolor="#0c4f0e">
                     <h1 id="ownID_id" align="center" style="color: white">
-                        ID: ?
+                        ID: ??
                     </h1>
                     <!--Get own ID from server-->
                     <script>
@@ -128,7 +128,7 @@
                         </div>
                     </table>
                 </td>
-            
+
                 <!--Chat-->
                 <td bgcolor="#eee" height="250">
                     <table>
@@ -149,7 +149,7 @@
                              name="node"> <!--onclick="this.form.reset()">-->
                     </form>
                     <button id="add_button_id">Add</button>
-                    
+
                     <!--Send new node informations to server and refresh list-->
                     <script>
                         clickAddButton();
@@ -162,7 +162,7 @@
                              type="text" name="message" onclick="this.form.reset()">
                     </form>
                     <button id="send_button_id">Send</button>
-                    
+
                     <!--Send rumor to server and refresh chat-->
                     <script>
                         clickSendButton();
