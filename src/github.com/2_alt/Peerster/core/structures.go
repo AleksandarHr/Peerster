@@ -45,8 +45,27 @@ type PrivateMessage struct {
 // GossipPacket standard wrapper for communications
 // between gossipers
 type GossipPacket struct {
-	Simple 	*SimpleMessage
-	Rumor  	*RumorMessage
-	Status 	*StatusPacket
-	Private *PrivateMessage
+	Simple 			*SimpleMessage
+	Rumor  			*RumorMessage
+	Status 			*StatusPacket
+	Private 		*PrivateMessage
+	DataRequest *DataRequest
+	DataReply 	*DataReply
+}
+
+// DataRequest - a struct for requesting file chunks
+type DataRequest struct {
+	Origin string
+	Destination string
+	HopLimit uint32
+	HashValue []byte
+}
+
+// DataReply a struct for sending file chunks
+type DataReply struct {
+	Origin string
+	Destination string
+	HopLimit uint32
+	HashValue []byte
+	Data []byte
 }

@@ -8,7 +8,7 @@ import "io"
 
 // fixed file chunk size of 8KB
 const fixedChunkSize = uint32(8)
-const filesFolder = "_SharedFiles/"
+const filesFolder = "../_SharedFiles/"
 const sha256HashSize = 32
 
 func computeSha256(data []byte) [sha256HashSize]byte{
@@ -16,6 +16,7 @@ func computeSha256(data []byte) [sha256HashSize]byte{
 }
 
 func scanFileInChunks(chunkSize uint32, fn string) [][]byte{
+  // open the file
   filePath := filesFolder + fn
   file, err := os.Open(filePath)
   if err != nil {
@@ -26,6 +27,7 @@ func scanFileInChunks(chunkSize uint32, fn string) [][]byte{
 
   fileChunks := make([][]byte, 0)
   buffer := make([]byte, chunkSize)
+  // read file in chunks of 8kb 
   for {
     bytesRead, err := file.Read(buffer)
     if err!= nil {
