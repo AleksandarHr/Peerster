@@ -7,20 +7,13 @@ import "bytes"
 import "path/filepath"
 import "encoding/hex"
 import "io/ioutil"
+import "github.com/2_alt/Peerster/core"
 
 // fixed file chunk size of 8KB = 8192 bytes
 const fixedChunkSize = uint32(8192)
 const filesFolder = "./_SharedFiles/"
 // size of the sha-256 hash in bytes
-const sha256HashSize = uint32(32)
-
-type fileInformation struct {
-  FileName string
-  NumberOfBytes uint32
-  MetaHash [sha256HashSize]byte
-  Metafile []byte
-  HashedChunksMap map[string][sha256HashSize]byte
-}
+// const core.Sha256HashSize = uint32(32)
 
 // HandleFileSharing - a function to index, divide, hash, and save hashed chunks of a file
 func HandleFileSharing(fname string) {
@@ -31,7 +24,7 @@ func HandleFileSharing(fname string) {
   fmt.Println("Done saving hashes")
 }
 
-func scanIndexAndHashFile(fn string) *fileInformation {
+func scanIndexAndHashFile(fn string) *core.FileInformation {
   // open the file
   filePath, _ := filepath.Abs(filesFolder + fn)
   file, err := os.Open(filePath)
@@ -43,7 +36,7 @@ func scanIndexAndHashFile(fn string) *fileInformation {
   fileSize := 0
 
   buffer := make([]byte, fixedChunkSize)
-  chunksMap := make(map[string][sha256HashSize]byte)
+  chunksMap := make(map[string][core.Sha256HashSize]byte)
   // read file in chunks of 8kb = 8192 bytes
   for {
     bytesRead, err := file.Read(buffer)
@@ -71,7 +64,7 @@ func scanIndexAndHashFile(fn string) *fileInformation {
   return fileInfo
 }
 
-func saveHashesToFiles(fileInfo *fileInformation) {
+func saveHashesToFiles(fileInfo *core.FileInformation) {
 
   metahashString := hashToString(fileInfo.MetaHash)
   // uncomment and use instead if storing file chunks in file-specific folders
@@ -101,7 +94,7 @@ func saveHashesToFiles(fileInfo *fileInformation) {
 
 // Handle requested hash from file system
 // ======================================
-func handleRequestedHashFromFileSystem(fileInfo *fileInformation, requestedHash [sha256HashSize]byte) []byte {
+func handleRequestedHashFromFileSystem(fileInfo *core.FileInformation, requestedHash [core.Sha256HashSize]byte) []byte {
   hashBytes := getChunkOrMetafileFromFileSystem(fileInfo, requestedHash)
   if hashBytes != nil {
     // if the requested hash  was a filechunk
@@ -111,7 +104,7 @@ func handleRequestedHashFromFileSystem(fileInfo *fileInformation, requestedHash 
 }
 
 // if the given fileInfo has the requested chunk, return it
-func getChunkOrMetafileFromFileSystem (fileInfo *fileInformation, chunkHash [sha256HashSize]byte) []byte {
+func getChunkOrMetafileFromFileSystem (fileInfo *core.FileInformation, chunkHash [core.Sha256HashSize]byte) []byte {
   hashString := hashToString(chunkHash)
   path, _ := filepath.Abs(filesFolder + hashString)
   if _, err := os.Stat(path); err == nil {
@@ -123,7 +116,7 @@ func getChunkOrMetafileFromFileSystem (fileInfo *fileInformation, chunkHash [sha
 
 // Handle requested hash from fileInformation struct
 //==================================================
-func handleRequestedHashFromStruct(fileInfo *fileInformation, requestedHash [sha256HashSize]byte) []byte {
+func handleRequestedHashFromStruct(fileInfo *core.FileInformation, requestedHash [core.Sha256HashSize]byte) []byte {
   fileChunk := getChunkFromStruct(fileInfo, requestedHash)
   if fileChunk != nil {
     // if the requested hash  was a filechunk
@@ -140,7 +133,7 @@ func handleRequestedHashFromStruct(fileInfo *fileInformation, requestedHash [sha
 }
 
 // if the given fileInfo has the requested chunk, return it
-func getChunkFromStruct (fileInfo *fileInformation, chunkHash [sha256HashSize]byte) []byte {
+func getChunkFromStruct (fileInfo *core.FileInformation, chunkHash [core.Sha256HashSize]byte) []byte {
   hashString := hashToString(chunkHash)
   if chunk, ok := fileInfo.HashedChunksMap[hashString]; ok {
     return chunk[:]
@@ -149,7 +142,7 @@ func getChunkFromStruct (fileInfo *fileInformation, chunkHash [sha256HashSize]by
 }
 
 // If the metahash requested is of the current metafile, return the metafile
-func getMetafileFromStruct (fileInfo *fileInformation, metahash [sha256HashSize]byte) []byte {
+func getMetafileFromStruct (fileInfo *core.FileInformation, metahash [core.Sha256HashSize]byte) []byte {
   if bytes.Compare(fileInfo.MetaHash[:], metahash[:]) == 0 {
     return fileInfo.Metafile
   }
@@ -160,8 +153,8 @@ func getMetafileFromStruct (fileInfo *fileInformation, metahash [sha256HashSize]
 // ========================================
 //              HELPERS
 // ========================================
-func createFileInformation (name string, numBytes uint32, hashedChunks map[string][sha256HashSize]byte) *fileInformation {
-  fileInfo := fileInformation{FileName: name}
+func createFileInformation (name string, numBytes uint32, hashedChunks map[string][core.Sha256HashSize]byte) *core.FileInformation {
+  fileInfo := core.FileInformation{FileName: name}
   fileInfo.Metafile = concatenateHashedChunks(hashedChunks)
   fileInfo.NumberOfBytes = uint32(numBytes)
   fileInfo.HashedChunksMap = hashedChunks
@@ -169,11 +162,11 @@ func createFileInformation (name string, numBytes uint32, hashedChunks map[strin
   return &fileInfo
 }
 
-func computeSha256(data []byte) [sha256HashSize]byte{
+func computeSha256(data []byte) [core.Sha256HashSize]byte{
   return sha256.Sum256(data)
 }
 
-func concatenateHashedChunks(chunks map[string][sha256HashSize]byte) []byte {
+func concatenateHashedChunks(chunks map[string][core.Sha256HashSize]byte) []byte {
   metafile := make([]byte, 0)
   for _, ch := range chunks {
     metafile = append(metafile, ch[:]...)

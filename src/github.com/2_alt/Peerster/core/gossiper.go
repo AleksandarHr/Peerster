@@ -14,6 +14,14 @@ type MongeringStatus struct {
 	Lock                  sync.Mutex
 }
 
+// DownloadingState - a struct of a file downloading state
+type DownloadingState struct {
+  FileInfo 	*FileInformation
+  DownloadFinished bool
+  NextChunkID uint32
+  DownloadingFrom string
+  lck sync.Mutex
+}
 
 // Gossiper Struct of a gossiper
 type Gossiper struct {
@@ -29,6 +37,7 @@ type Gossiper struct {
 	MongeringStatus 	[]*MongeringStatus
 	uiPort          	string
 	DestinationTable	map[string]string
+	DownloadingStates []*DownloadingState
 }
 
 // NewGossiper Create a new Gossiper
@@ -57,6 +66,7 @@ func NewGossiper(address string, name string,
 		MongeringStatus: 		make([]*MongeringStatus, 0),
 		uiPort:          		UIPort,
 		DestinationTable: 	make(map[string]string),
+		DownloadingStates:	make([]*DownloadingState, 0),
 	}
 }
 

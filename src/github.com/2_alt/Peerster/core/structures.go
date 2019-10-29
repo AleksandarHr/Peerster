@@ -1,5 +1,17 @@
 package core
 
+// Sha256HashSize - a constant for the size of a sha256 hash
+const Sha256HashSize = uint32(32)
+
+// FileInformation - a structure to hold all information about a given file
+type FileInformation struct {
+  FileName string
+  NumberOfBytes uint32
+  MetaHash [Sha256HashSize]byte
+  Metafile []byte
+  HashedChunksMap map[string][Sha256HashSize]byte
+}
+
 // SimpleMessage simple message for part 1
 type SimpleMessage struct {
 	OriginalName  string
