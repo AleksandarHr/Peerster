@@ -99,6 +99,30 @@ func saveHashesToFiles(fileInfo *fileInformation) {
 //              Chunks Handling
 // ========================================
 
+// Handle requested hash from file system
+// ======================================
+func handleRequestedHashFromFileSystem(fileInfo *fileInformation, requestedHash [sha256HashSize]byte) []byte {
+  hashBytes := getChunkOrMetafileFromFileSystem(fileInfo, requestedHash)
+  if hashBytes != nil {
+    // if the requested hash  was a filechunk
+    return hashBytes
+  }
+  return nil
+}
+
+// if the given fileInfo has the requested chunk, return it
+func getChunkOrMetafileFromFileSystem (fileInfo *fileInformation, chunkHash [sha256HashSize]byte) []byte {
+  hashString := hashToString(chunkHash)
+  path, _ := filepath.Abs(filesFolder + hashString)
+  if _, err := os.Stat(path); err == nil {
+    data, _ := ioutil.ReadFile(path)
+    return data
+  }
+  return nil
+}
+
+// Handle requested hash from fileInformation struct
+//==================================================
 func handleRequestedHashFromStruct(fileInfo *fileInformation, requestedHash [sha256HashSize]byte) []byte {
   fileChunk := getChunkFromStruct(fileInfo, requestedHash)
   if fileChunk != nil {
