@@ -7,6 +7,7 @@ import (
 	"time"
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
+	"github.com/2_alt/Peerster/filehandling"
 	"github.com/dedis/protobuf"
 )
 
@@ -498,30 +499,35 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 		// Prepare the message to be sent
 		if !simpleMode {
 
-			if isClientMessagePrivate(&message) {
+			if isClientFileSharing(&message) {
 				// TODO: Handle private messages from client
-				privateMsg := createNewPrivateMessage(gossiper.Name, message.Text, message.Destination)
-				handlePrivateMessage(gossiper, privateMsg)
+				filehandling.HandleFileSharing(*message.File)
 			} else {
-				// Print output
-				helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
+				if isClientMessagePrivate(&message) {
+					// Handle private messages from client
+					privateMsg := createNewPrivateMessage(gossiper.Name, message.Text, message.Destination)
+					handlePrivateMessage(gossiper, privateMsg)
+				} else {
+					// Print output
+					helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
 
-				// Add rumor to list of known rumors
-				gossiper.CurrentRumorID++
-				newRumor := core.RumorMessage{
-					Origin: gossiper.Name,
-					ID:     gossiper.CurrentRumorID,
-					Text:   message.Text,
-				}
-				addRumorToKnownRumors(gossiper, newRumor)
-				updateWant(gossiper, gossiper.Name)
+					// Add rumor to list of known rumors
+					gossiper.CurrentRumorID++
+					newRumor := core.RumorMessage{
+						Origin: gossiper.Name,
+						ID:     gossiper.CurrentRumorID,
+						Text:   message.Text,
+					}
+					addRumorToKnownRumors(gossiper, newRumor)
+					updateWant(gossiper, gossiper.Name)
 
-				// Pick a random address and send the rumor
-				chosenAddr := ""
-				if len(gossiper.KnownPeers) > 0 {
-					chosenAddr = helpers.PickRandomInSlice(gossiper.KnownPeers)
-					sendRumor(newRumor, gossiper, chosenAddr)
-					helpers.PrintOutputMongering(chosenAddr)
+					// Pick a random address and send the rumor
+					chosenAddr := ""
+					if len(gossiper.KnownPeers) > 0 {
+						chosenAddr = helpers.PickRandomInSlice(gossiper.KnownPeers)
+						sendRumor(newRumor, gossiper, chosenAddr)
+						helpers.PrintOutputMongering(chosenAddr)
+					}
 				}
 			}
 		}
@@ -609,6 +615,10 @@ func routeRumorHandler(gossiperPtr *core.Gossiper, routeRumorPtr *int) {
 // Given a message from the client, return true if it is private
 func isClientMessagePrivate(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.Destination), "") != 0)
+}
+
+func isClientFileSharing(clientMsg *core.Message) bool {
+	return (strings.Compare(*(clientMsg.File), "") != 0)
 }
 
 // A constructor for PrivateMessages - defaultID = 0 and defaultHopLimit = 10

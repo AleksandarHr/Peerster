@@ -58,11 +58,12 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.HandleErrorFatal(err)
 		text := ""
 		dest := ""
+		fileToShare := ""
 		err = json.Unmarshal(reqBody, &text)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)

@@ -1,4 +1,4 @@
-package filesharing
+package filehandling
 import "crypto/sha256"
 import "os"
 import "fmt"
@@ -22,8 +22,8 @@ type fileInformation struct {
   HashedChunksMap map[string][sha256HashSize]byte
 }
 
-// HandleFile - a function to index, divide, hash, and save hashed chunks of a file
-func HandleFile(fname string) {
+// HandleFileSharing - a function to index, divide, hash, and save hashed chunks of a file
+func HandleFileSharing(fname string) {
   fmt.Println("About to scanning, indexing and hashing")
   fileInfo := scanIndexAndHashFile(fname)
   fmt.Println("Done scanning, indexing and hashing")
@@ -74,7 +74,9 @@ func scanIndexAndHashFile(fn string) *fileInformation {
 func saveHashesToFiles(fileInfo *fileInformation) {
 
   metahashString := hashToString(fileInfo.MetaHash)
-  path, _ := filepath.Abs(filesFolder + "/" + metahashString)
+  // uncomment and use instead if storing file chunks in file-specific folders
+  // path, _ := filepath.Abs(filesFolder + "/" + metahashString)
+  path, _ := filepath.Abs(filesFolder)
   if _, err := os.Stat(path); os.IsNotExist(err) {
     fmt.Println("Making a directory :: ", path)
     os.Mkdir(path, 0777)
