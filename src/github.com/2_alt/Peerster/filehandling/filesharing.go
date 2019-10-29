@@ -1,8 +1,9 @@
-package filehandling
+package filesharing
 import "crypto/sha256"
 import "os"
 import "fmt"
 import "io"
+import "bytes"
 import "path/filepath"
 import "encoding/hex"
 import "io/ioutil"
@@ -70,12 +71,10 @@ func scanIndexAndHashFile(fn string) *fileInformation {
   return fileInfo
 }
 
-
 func saveHashesToFiles(fileInfo *fileInformation) {
-  fullName := fileInfo.FileName
-  extension := filepath.Ext(fullName)
-  fileName := fullName[0:len(fullName) - len(extension)]
-  path, _ := filepath.Abs(filesFolder + "/" + fileName)
+
+  metahashString := hashToString(fileInfo.MetaHash)
+  path, _ := filepath.Abs(filesFolder + "/" + metahashString)
   if _, err := os.Stat(path); os.IsNotExist(err) {
     fmt.Println("Making a directory :: ", path)
     os.Mkdir(path, 0777)
@@ -90,11 +89,46 @@ func saveHashesToFiles(fileInfo *fileInformation) {
   }
 
   metafile := fileInfo.Metafile
-  metahash := fileInfo.MetaHash
-  metafilePath, _ := filepath.Abs(path + "/" + hashToString(metahash))
+  metafilePath, _ := filepath.Abs(path + "/" + metahashString)
   ioutil.WriteFile(metafilePath, metafile, 0777)
 }
 
+// ========================================
+//              Chunks Handling
+// ========================================
+
+func handleRequestedHashFromStruct(fileInfo *fileInformation, requestedHash [sha256HashSize]byte) []byte {
+  fileChunk := getChunkFromStruct(fileInfo, requestedHash)
+  if fileChunk != nil {
+    // if the requested hash  was a filechunk
+    return fileChunk
+  }
+
+  metafile := getMetafileFromStruct(fileInfo, requestedHash)
+  if metafile != nil {
+    // if the requested hash was the metafile
+    return metafile
+  }
+
+  return nil
+}
+
+// if the given fileInfo has the requested chunk, return it
+func getChunkFromStruct (fileInfo *fileInformation, chunkHash [sha256HashSize]byte) []byte {
+  hashString := hashToString(chunkHash)
+  if chunk, ok := fileInfo.HashedChunksMap[hashString]; ok {
+    return chunk[:]
+  }
+  return nil
+}
+
+// If the metahash requested is of the current metafile, return the metafile
+func getMetafileFromStruct (fileInfo *fileInformation, metahash [sha256HashSize]byte) []byte {
+  if bytes.Compare(fileInfo.MetaHash[:], metahash[:]) == 0 {
+    return fileInfo.Metafile
+  }
+  return nil
+}
 
 
 // ========================================

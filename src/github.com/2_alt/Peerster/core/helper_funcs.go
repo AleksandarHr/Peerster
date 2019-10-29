@@ -8,9 +8,9 @@ import "strings"
 
 // ClientConnectAndSend connects to the given gossiper's address and send the text to it.
 // This function is used by the server to send a message to the gossiper.
-func ClientConnectAndSend(remoteAddr string, text *string, destination *string) {
+func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string) {
 	// Create GossipPacket and encapsulate message into it
-	msg := &Message{Text: *text, Destination: destination}
+	msg := &Message{Text: *text, Destination: destination, File: fileToShare}
 	packetBytes, err := protobuf.Encode(msg)
 	helpers.HandleErrorFatal(err)
 
