@@ -16,16 +16,16 @@ type MongeringStatus struct {
 
 // DownloadingState - a struct of a file downloading state
 type DownloadingState struct {
-  // FileInfo 	*FileInformation
+  FileInfo 	*FileInformation
   DownloadFinished bool
+	MetafileDownloaded bool
+	MetafileRequested bool
   NextChunkIndex uint32
+	LatestRequestedChunk []byte
+	ChunksToRequest [][]byte
   DownloadingFrom string
 	DownloadChanel chan *DataReply
 }
-
-// type SafeDownloadingStates struct{
-// 	lck sync.Mutex
-// }
 
 // Gossiper Struct of a gossiper
 type Gossiper struct {

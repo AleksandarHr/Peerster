@@ -2,7 +2,7 @@ package filehandling
 import "github.com/2_alt/Peerster/core"
 // import "crypto/sha256"
 // import "os"
-import "fmt"
+// import "fmt"
 // import "io"
 // import "bytes"
 // import "path/filepath"
