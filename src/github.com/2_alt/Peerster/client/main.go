@@ -11,9 +11,10 @@ func main() {
 	msgPtr := flag.String("msg", "", "message to be sent")
 	destPtr := flag.String("dest", "", "message to be sent")
 	fileToSharePtr := flag.String("file", "", "file to be indexed by the gossiper")
+	requestHash := flag.String("request", "", "string representation of the metahash of the file to request")
 	flag.Parse()
 	localAddressAndPort := "127.0.0.1:" + *UIPortPtr
 
 	// Establish UDP connection and send the message
-	core.ClientConnectAndSend(localAddressAndPort, msgPtr, destPtr, fileToSharePtr)
+	core.ClientConnectAndSend(localAddressAndPort, msgPtr, destPtr, fileToSharePtr, requestHash)
 }

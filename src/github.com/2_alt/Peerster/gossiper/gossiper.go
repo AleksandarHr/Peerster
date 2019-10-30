@@ -499,9 +499,9 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 		// Prepare the message to be sent
 		if !simpleMode {
 
-			if isClientFileSharing(&message) {
+			if isClientFileIndexing(&message) {
 				// TODO: Handle private messages from client
-				filehandling.HandleFileSharing(*message.File)
+				filehandling.HandleFileIndexing(*message.File)
 			} else {
 				if isClientMessagePrivate(&message) {
 					// Handle private messages from client
@@ -617,8 +617,14 @@ func isClientMessagePrivate(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.Destination), "") != 0)
 }
 
+// true if the client did not specify a destination - only wants to index and divide file locally
+func isClientFileIndexing(clientMsg *core.Message) bool {
+	return (strings.Compare(*(clientMsg.File), "") != 0 && (strings.Compare(*(clientMsg.Destination), "") == 0))
+}
+
+// true if client specified filename and destination - divide file locally and send to destination
 func isClientFileSharing(clientMsg *core.Message) bool {
-	return (strings.Compare(*(clientMsg.File), "") != 0)
+	return (strings.Compare(*(clientMsg.File), "") != 0 && (strings.Compare(*(clientMsg.Destination), "") != 0))
 }
 
 // A constructor for PrivateMessages - defaultID = 0 and defaultHopLimit = 10

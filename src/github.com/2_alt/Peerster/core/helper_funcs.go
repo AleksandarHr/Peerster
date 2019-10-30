@@ -5,12 +5,19 @@ import "net"
 import "fmt"
 import "strconv"
 import "strings"
+import "encoding/hex"
 
 // ClientConnectAndSend connects to the given gossiper's address and send the text to it.
 // This function is used by the server to send a message to the gossiper.
-func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string) {
+func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string, request *string) {
 	// Create GossipPacket and encapsulate message into it
 	msg := &Message{Text: *text, Destination: destination, File: fileToShare}
+	if strings.Compare(*request, "") != 0 {
+		decoded, err := hex.DecodeString(*request)
+		if err == nil {
+			msg.Request = &decoded
+		}
+	}
 	packetBytes, err := protobuf.Encode(msg)
 	helpers.HandleErrorFatal(err)
 
