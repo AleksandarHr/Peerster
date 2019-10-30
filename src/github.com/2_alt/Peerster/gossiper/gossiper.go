@@ -671,5 +671,4 @@ func forwardPrivateMessage(gossiperPtr *core.Gossiper, msg *core.PrivateMessage)
 	packetBytes, err := protobuf.Encode(&packetToSend)
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiperPtr.Conn, packetBytes)
-
 }

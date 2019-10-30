@@ -94,8 +94,8 @@ func saveHashesToFiles(fileInfo *core.FileInformation) {
 
 // Handle requested hash from file system
 // ======================================
-func handleRequestedHashFromFileSystem(fileInfo *core.FileInformation, requestedHash [core.Sha256HashSize]byte) []byte {
-  hashBytes := getChunkOrMetafileFromFileSystem(fileInfo, requestedHash)
+func retrieveRequestedHashFromFileSystem(requestedHash [core.Sha256HashSize]byte) []byte {
+  hashBytes := getChunkOrMetafileFromFileSystem(requestedHash)
   if hashBytes != nil {
     // if the requested hash  was a filechunk
     return hashBytes
@@ -104,7 +104,7 @@ func handleRequestedHashFromFileSystem(fileInfo *core.FileInformation, requested
 }
 
 // if the given fileInfo has the requested chunk, return it
-func getChunkOrMetafileFromFileSystem (fileInfo *core.FileInformation, chunkHash [core.Sha256HashSize]byte) []byte {
+func getChunkOrMetafileFromFileSystem (chunkHash [core.Sha256HashSize]byte) []byte {
   hashString := hashToString(chunkHash)
   path, _ := filepath.Abs(filesFolder + hashString)
   if _, err := os.Stat(path); err == nil {

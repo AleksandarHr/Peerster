@@ -9,34 +9,29 @@ import "fmt"
 // import "encoding/hex"
 // import "io/ioutil"
 
-func createDataRequest(origin string, dest string, hopLimit uint32, hash [core.Sha256HashSize]byte) *core.DataRequest{
-  request := core.DataRequest{Origin: origin, Destination: dest, HopLimit: hopLimit, HashValue: hash[:]}
-  return &request
-}
-
 func downloadFile(gossiper *core.Gossiper, fname string, requestMetahash [core.Sha256HashSize]byte, dest string) {
-  defaultHopLimit := uint32(10)
-  fileInfo := core.FileInformation{FileName: fname, MetaHash: requestMetahash}
-  // Create a DownloadingState and update gossiper's struct to keep track of what's going on
-  state := core.DownloadingState {FileInfo: &fileInfo, DownloadFinished: false,
-                                  NextChunkIndex: uint32(0), DownloadingFrom: dest}
-  hashStr := hashToString(requestMetahash)
-  if otherDownloads, ok := gossiper.DownloadingStates[hashStr]; ok {
-    // if we are already downloading other files from the same peer, add the new state
-    otherDownloads = append(otherDownloads, &state)
-    gossiper.DownloadingStates[hashStr] = otherDownloads
-  } else {
-    // if this is the first file we are downloading from this peer
-    downloads := make([]*core.DownloadingState, 0)
-    downloads = append(downloads, &state)
-    gossiper.DownloadingStates[hashStr] = downloads
-  }
-
-
-  // Start download by first sending a DataRequest the metafile associated with 'metahash'
-  dataReq := createDataRequest(gossiper.Name, dest, defaultHopLimit, requestMetahash)
-  packetToSend := core.GossipPacket{DataRequest: dataReq}
-  fmt.Println(packetToSend.DataRequest.Origin)
+  // defaultHopLimit := uint32(10)
+  // fileInfo := core.FileInformation{FileName: fname, MetaHash: requestMetahash}
+  // // Create a DownloadingState and update gossiper's struct to keep track of what's going on
+  // state := core.DownloadingState {FileInfo: &fileInfo, DownloadFinished: false,
+  //                                 NextChunkIndex: uint32(0), DownloadingFrom: dest}
+  // hashStr := hashToString(requestMetahash)
+  // if otherDownloads, ok := gossiper.DownloadingStates[hashStr]; ok {
+  //   // if we are already downloading other files from the same peer, add the new state
+  //   otherDownloads = append(otherDownloads, &state)
+  //   gossiper.DownloadingStates[hashStr] = otherDownloads
+  // } else {
+  //   // if this is the first file we are downloading from this peer
+  //   downloads := make([]*core.DownloadingState, 0)
+  //   downloads = append(downloads, &state)
+  //   gossiper.DownloadingStates[hashStr] = downloads
+  // }
+  //
+  //
+  // // Start download by first sending a DataRequest the metafile associated with 'metahash'
+  // dataReq := createDataRequest(gossiper.Name, dest, defaultHopLimit, requestMetahash)
+  // packetToSend := core.GossipPacket{DataRequest: dataReq}
+  // fmt.Println(packetToSend.DataRequest.Origin)
   // TODO: Send packet to nextHop for the given destination name
 
   // Wait for a valid reply and make sure the hash of the reply mathes with the requested one
