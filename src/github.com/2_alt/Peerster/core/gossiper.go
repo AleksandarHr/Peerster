@@ -21,7 +21,7 @@ type DownloadingState struct {
 	MetafileDownloaded   bool
 	MetafileRequested    bool
 	NextChunkIndex       uint32
-	LatestRequestedChunk []byte
+	LatestRequestedChunk [32]byte
 	ChunksToRequest      [][]byte
 	DownloadingFrom      string
 	DownloadChanel       chan *DataReply
