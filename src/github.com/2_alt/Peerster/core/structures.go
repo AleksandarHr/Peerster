@@ -2,17 +2,18 @@ package core
 
 // Sha256HashSize - a constant for the size of a sha256 hash
 const Sha256HashSize = uint32(32)
+
 // FixedChunkSize - a constant for the size of a file chunk
 const FixedChunkSize = uint32(8192)
 
 // FileInformation - a structure to hold all information about a given file
 type FileInformation struct {
-  FileName string
-  NumberOfBytes uint32
-  MetaHash []byte
-  Metafile []byte
-  ChunksMap map[string][]byte
-  HashedChunksMap map[string][]byte
+	FileName        string
+	NumberOfBytes   uint32
+	MetaHash        []byte
+	Metafile        []byte
+	ChunksMap       map[uint32][]byte
+	HashedChunksMap map[string][]byte
 }
 
 // SimpleMessage simple message for part 1
@@ -24,10 +25,10 @@ type SimpleMessage struct {
 
 // Message is sent between client and gossiper
 type Message struct {
-	Text 				string
+	Text        string
 	Destination *string
-	File				*string
-	Request			*[]byte
+	File        *string
+	Request     *[]byte
 }
 
 // RumorMessage sent between gossipers
@@ -50,37 +51,37 @@ type StatusPacket struct {
 
 // PrivateMessage contains a private message with a destination
 type PrivateMessage struct {
-	Origin			string
-	ID					uint32
-	Text				string
-	Destination	string
-	HopLimit		uint32
+	Origin      string
+	ID          uint32
+	Text        string
+	Destination string
+	HopLimit    uint32
 }
 
 // GossipPacket standard wrapper for communications
 // between gossipers
 type GossipPacket struct {
-	Simple 			*SimpleMessage
-	Rumor  			*RumorMessage
-	Status 			*StatusPacket
-	Private 		*PrivateMessage
+	Simple      *SimpleMessage
+	Rumor       *RumorMessage
+	Status      *StatusPacket
+	Private     *PrivateMessage
 	DataRequest *DataRequest
-	DataReply 	*DataReply
+	DataReply   *DataReply
 }
 
 // DataRequest - a struct for requesting file chunks
 type DataRequest struct {
-	Origin string
+	Origin      string
 	Destination string
-	HopLimit uint32
-	HashValue []byte
+	HopLimit    uint32
+	HashValue   []byte
 }
 
 // DataReply a struct for sending file chunks
 type DataReply struct {
-	Origin string
+	Origin      string
 	Destination string
-	HopLimit uint32
-	HashValue []byte
-	Data []byte
+	HopLimit    uint32
+	HashValue   []byte
+	Data        []byte
 }

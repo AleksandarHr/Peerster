@@ -281,7 +281,13 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 		}
 
 		if !simpleMode {
-			if gossipPacket.Private != nil {
+			if gossipPacket.DataRequest != nil {
+				// Handle incoming data requests messages from other peers
+				filehandling.HandlePeerDataRequest(gossiper, gossipPacket.DataRequest)
+			} else if gossipPacket.DataReply != nil {
+				// Handle incoming data reply messages from other peers
+				filehandling.HandlePeerDataReply(gossiper, gossipPacket.DataReply)
+			} else if gossipPacket.Private != nil {
 				// Handle incoming private message from another peer
 				handlePrivateMessage(gossiper, gossipPacket.Private)
 			}
@@ -500,8 +506,10 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 		if !simpleMode {
 
 			if isClientFileIndexing(&message) {
-				// TODO: Handle private messages from client
+				// TODO: Handle messages from client to simply index a file
 				filehandling.HandleFileIndexing(*message.File)
+			} else if isClientRequestingDownload(&message){
+				filehandling.HandleClientDownloadRequest(gossiper, &message)
 			} else {
 				if isClientMessagePrivate(&message) {
 					// Handle private messages from client
@@ -620,6 +628,13 @@ func isClientMessagePrivate(clientMsg *core.Message) bool {
 // true if the client did not specify a destination - only wants to index and divide file locally
 func isClientFileIndexing(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.File), "") != 0 && (strings.Compare(*(clientMsg.Destination), "") == 0))
+}
+
+// true if the client did not specify a destination - only wants to index and divide file locally
+func isClientRequestingDownload(clientMsg *core.Message) bool {
+	return (strings.Compare(*(clientMsg.File), "") != 0 &&
+				 (strings.Compare(*(clientMsg.Destination), "") == 0) &&
+			 	 (len(*clientMsg.Request) != 0))
 }
 
 // true if client specified filename and destination - divide file locally and send to destination

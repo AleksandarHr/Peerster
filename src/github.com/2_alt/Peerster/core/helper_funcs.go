@@ -11,13 +11,15 @@ import "encoding/hex"
 // This function is used by the server to send a message to the gossiper.
 func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string, request *string) {
 	// Create GossipPacket and encapsulate message into it
+	requestBytes := make([]byte, 0)
 	msg := &Message{Text: *text, Destination: destination, File: fileToShare}
 	if strings.Compare(*request, "") != 0 {
 		decoded, err := hex.DecodeString(*request)
 		if err == nil {
-			msg.Request = &decoded
+			requestBytes = decoded
 		}
 	}
+	msg.Request = &requestBytes
 	packetBytes, err := protobuf.Encode(msg)
 	helpers.HandleErrorFatal(err)
 
