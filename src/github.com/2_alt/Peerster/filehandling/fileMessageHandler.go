@@ -132,9 +132,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 					chunkHash := reply.HashValue
 					chunkHashString := hashToString(chunkHash)
 					chunkData := reply.Data
-					chunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
-					gossiper.DownloadingStates[downloadFrom].FileInfo.HashedChunksMap[chunkHashString] = chunkHash
-					gossiper.DownloadingStates[downloadFrom].FileInfo.ChunksMap[chunkIdx] = chunkData
+					gossiper.DownloadingStates[downloadFrom].FileInfo.ChunksMap[chunkHashString] = chunkData
 					gossiper.DownloadingStates[downloadFrom].NextChunkIndex++
 				}
 				// save chunk to a new file
@@ -155,10 +153,11 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 				} else {
 					// if not, get next chunk request, (update ticker) and send it
 					ticker = time.NewTicker(5 * time.Second)
-					// nextRequest := *core.DataRequest{}
-					// gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextRequest
-					// request := createDataRequest(gossiper.Name, downloadFrom, nextRequest)
-					// forwardDataRequest(gossiper, request)
+					nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
+					nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx]
+					gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextHashToRequest
+					request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest)
+					forwardDataRequest(gossiper, request)
 				}
 			}
 		}
@@ -166,17 +165,15 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 }
 
 func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply) {
-	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = reply.Data
+	// read the metafile and populate hashedChunks in the file
+	metafile := mapifyMetafile(reply.Data)
+	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = metafile
 	gossiper.DownloadingStates[reply.Origin].MetafileDownloaded = true
 
-	// read the metafile and populate hashedChunks in the file
-	for i := 0; i < len(reply.Data); i += 32 {
-		if len(reply.Data) <= i+32 {
-			gossiper.DownloadingStates[reply.Origin].FileInfo.ChunksMap[uint32(i/32)] = reply.Data[i:len(reply.Data)]
-		} else {
-			gossiper.DownloadingStates[reply.Origin].FileInfo.ChunksMap[uint32(i/32)] = reply.Data[i : i+32]
-		}
-	}
+	// write metafile to file system
+	path, _ := filepath.Abs(downloadedFilesFolder)
+	metafilePath, _ := filepath.Abs(path + "/" + hashToString(reply.HashValue))
+	ioutil.WriteFile(metafilePath, reply.Data, 0777)
 }
 
 func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {

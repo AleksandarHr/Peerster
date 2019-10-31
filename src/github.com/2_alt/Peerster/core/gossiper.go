@@ -1,9 +1,9 @@
 package core
+
 import "net"
 import "sync"
 import "strings"
 import "github.com/2_alt/Peerster/helpers"
-
 
 // MongeringStatus struct of a mongering status linked with a timer
 type MongeringStatus struct {
@@ -16,33 +16,33 @@ type MongeringStatus struct {
 
 // DownloadingState - a struct of a file downloading state
 type DownloadingState struct {
-  FileInfo 	*FileInformation
-  DownloadFinished bool
-	MetafileDownloaded bool
-	MetafileRequested bool
-  NextChunkIndex uint32
+	FileInfo             *FileInformation
+	DownloadFinished     bool
+	MetafileDownloaded   bool
+	MetafileRequested    bool
+	NextChunkIndex       uint32
 	LatestRequestedChunk []byte
-	ChunksToRequest [][]byte
-  DownloadingFrom string
-	DownloadChanel chan *DataReply
+	ChunksToRequest      [][]byte
+	DownloadingFrom      string
+	DownloadChanel       chan *DataReply
 }
 
 // Gossiper Struct of a gossiper
 type Gossiper struct {
-	Address         	*net.UDPAddr
-	Conn            	*net.UDPConn
-	Name            	string
-	KnownPeers      	[]string
-	KnownRumors     	[]RumorMessage
-	Want            	[]PeerStatus
-	LocalAddr       	*net.UDPAddr
-	LocalConn       	*net.UDPConn
-	CurrentRumorID  	uint32
-	MongeringStatus 	[]*MongeringStatus
-	uiPort          	string
-	DestinationTable	map[string]string
+	Address           *net.UDPAddr
+	Conn              *net.UDPConn
+	Name              string
+	KnownPeers        []string
+	KnownRumors       []RumorMessage
+	Want              []PeerStatus
+	LocalAddr         *net.UDPAddr
+	LocalConn         *net.UDPConn
+	CurrentRumorID    uint32
+	MongeringStatus   []*MongeringStatus
+	uiPort            string
+	DestinationTable  map[string]string
 	DownloadingStates map[string]*DownloadingState
-	DownloadingLock sync.Mutex
+	DownloadingLock   sync.Mutex
 }
 
 // NewGossiper Create a new Gossiper
@@ -59,19 +59,19 @@ func NewGossiper(address string, name string,
 	helpers.HandleErrorFatal(err)
 
 	return &Gossiper{
-		Address:         		udpAddr,
-		Conn:            		udpConn,
-		Name:            		name,
-		KnownPeers:      		knownPeersList,
-		KnownRumors:     		make([]RumorMessage, 0),
-		Want:            		make([]PeerStatus, 0),
-		LocalAddr:       		udpAddrLocal,
-		LocalConn:       		udpConnLocal,
-		CurrentRumorID:  		uint32(0),
-		MongeringStatus: 		make([]*MongeringStatus, 0),
-		uiPort:          		UIPort,
-		DestinationTable: 	make(map[string]string),
-		DownloadingStates:	make(map[string]*DownloadingState),
+		Address:           udpAddr,
+		Conn:              udpConn,
+		Name:              name,
+		KnownPeers:        knownPeersList,
+		KnownRumors:       make([]RumorMessage, 0),
+		Want:              make([]PeerStatus, 0),
+		LocalAddr:         udpAddrLocal,
+		LocalConn:         udpConnLocal,
+		CurrentRumorID:    uint32(0),
+		MongeringStatus:   make([]*MongeringStatus, 0),
+		uiPort:            UIPort,
+		DestinationTable:  make(map[string]string),
+		DownloadingStates: make(map[string]*DownloadingState),
 	}
 }
 

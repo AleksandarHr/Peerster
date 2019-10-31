@@ -8,12 +8,12 @@ const FixedChunkSize = uint32(8192)
 
 // FileInformation - a structure to hold all information about a given file
 type FileInformation struct {
-	FileName        string
-	NumberOfBytes   uint32
-	MetaHash        []byte
-	Metafile        []byte
-	ChunksMap       map[uint32][]byte
-	HashedChunksMap map[string][]byte
+	FileName      string
+	NumberOfBytes uint32
+	MetaHash      []byte
+	Metafile      map[uint32][]byte
+	ChunksMap     map[string][]byte
+	// HashedChunksMap map[string][]byte
 }
 
 // SimpleMessage simple message for part 1
