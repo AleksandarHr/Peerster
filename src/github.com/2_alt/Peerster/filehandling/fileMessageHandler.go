@@ -146,7 +146,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 				ioutil.WriteFile(chunkPath, chunkData, 0777)
 				file.Close()
 
-				// if that was the last chunk to be downloaded close the chanel
+				// if that was the last chunk to be downloaded close the chanel and save the full file
 				if wasLastFileChunk(gossiper, reply) {
 					gossiper.DownloadingStates[downloadFrom].DownloadFinished = true
 					reconstructAndSaveFullyDownloadedFile(gossiper.DownloadingStates[downloadFrom].FileInfo)
@@ -177,17 +177,10 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply) {
 }
 
 func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
-	return false
+	metafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile
+	lastChunkInMetafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile[uint32(len(metafile)-1)]
+	return bytes.Compare(reply.HashValue, lastChunkInMetafile) == 0
 }
-
-// // TODO: UNCLEAR???????? DOESNT EXIST???
-// func handleClientShareRequest(gossiper *core.Gossiper, clientMsg *core.Message) {
-//   // a client message which has a file specified to index, divide, and hash
-//   //    as well as destination where to start sending the file
-//
-//   // handle file indexing
-//   // call filesharing functionality
-// }
 
 // ===================================================================
 

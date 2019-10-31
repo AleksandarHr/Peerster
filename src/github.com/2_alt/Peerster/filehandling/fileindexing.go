@@ -12,7 +12,7 @@ import "github.com/2_alt/Peerster/core"
 
 // fixed file chunk size of 8KB = 8192 bytes
 const sharedFilesFolder = "./_SharedFiles/"
-const downloadedFilesFolder = "./_Downloaded/"
+const downloadedFilesFolder = "./_Downloads/"
 
 // size of the sha-256 hash in bytes
 // const core.Sha256HashSize = uint32(32)
@@ -91,6 +91,7 @@ func saveHashesToFiles(fileInfo *core.FileInformation) {
 
 	metafile := concatenateMetafile(fileInfo.Metafile)
 	metafilePath, _ := filepath.Abs(path + "/" + metahashString)
+	fmt.Println("METAHASH is == ", metahashString)
 	ioutil.WriteFile(metafilePath, metafile, 0777)
 }
 
