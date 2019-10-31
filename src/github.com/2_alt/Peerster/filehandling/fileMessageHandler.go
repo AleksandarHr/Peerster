@@ -114,12 +114,13 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 			resendDataRequest(gossiper, downloadFrom)
 		case reply := <-ch:
 			// if a dataReply comes from the chanel
-			// sanity check - make sure it is a reply to my last request (HOW???)
+			// sanity check - make sure it is a reply to my last request
 			if !replyWasExpected(gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk, reply) {
 				// received data reply for a chunk that was not requested; do nothing
 			}
 			if !replyIntegrityCheck(reply) {
 				// received data reply with mismatching hash and data; resend request
+				fmt.Println("-------------------- Integrity check DID NOT pass")
 				resendDataRequest(gossiper, downloadFrom)
 			} else {
 				if gossiper.DownloadingStates[downloadFrom].MetafileRequested &&
@@ -210,7 +211,6 @@ func forwardDataRequest(gossiper *core.Gossiper, msg *core.DataRequest) {
 
 // A function to forward a data request to the corresponding next hop
 func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
-
 	if msg.HopLimit == 0 {
 		// if we have reached the HopLimit, drop the message
 		return
@@ -267,7 +267,8 @@ func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
 	downloadFrom := clientMsg.Destination
 	fileName := clientMsg.File
 	requestedMetaHash := clientMsg.Request
-	fInfo := &core.FileInformation{FileName: *fileName, MetaHash: *requestedMetaHash}
+	fInfo := &core.FileInformation{FileName: *fileName, MetaHash: *requestedMetaHash,
+		Metafile: make(map[uint32][]byte, 0), ChunksMap: make(map[string][]byte, 0)}
 	state := core.DownloadingState{FileInfo: fInfo, DownloadFinished: false, MetafileDownloaded: false,
 		MetafileRequested: false, NextChunkIndex: uint32(0), ChunksToRequest: make([][]byte, 0),
 		DownloadingFrom: *downloadFrom, DownloadChanel: make(chan *core.DataReply)}

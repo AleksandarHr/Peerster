@@ -1,7 +1,6 @@
 package gossiper
 
 import (
-	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -49,25 +48,22 @@ func sendRumor(r core.RumorMessage, gossiper *core.Gossiper, toAddr string) {
 // Receive a message from UDP and decode it into a GossipPacket
 func receiveAndDecode(gossiper *core.Gossiper) (core.GossipPacket, *net.UDPAddr) {
 	// Create buffer
-	buffer := make([]byte, 128)
-	fmt.Println("HERE")
+	buffer := make([]byte, 9216)
+
 	// Read message from UDP
 	conn := gossiper.Conn
 	size, fromAddr, err := conn.ReadFromUDP(buffer)
 
-	fmt.Println("HERE 2")
 	// Timeout
 	helpers.HandleErrorNonFatal(err)
 	if err != nil {
 		return core.GossipPacket{}, nil
 	}
-	fmt.Println("HERE 3")
 
 	// Decode the packet
 	gossipPacket := core.GossipPacket{}
 	err = protobuf.Decode(buffer[0:size], &gossipPacket)
 	helpers.HandleErrorNonFatal(err)
-	fmt.Println("HERE 4")
 
 	return gossipPacket, fromAddr
 }

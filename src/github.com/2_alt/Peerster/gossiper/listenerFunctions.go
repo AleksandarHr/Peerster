@@ -1,6 +1,7 @@
 package gossiper
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -285,6 +286,7 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 				//Handle messages from client to simply index a file
 				filehandling.HandleFileIndexing(*message.File)
 			} else if isClientRequestingDownload(&message) {
+				fmt.Println("Message is a download request")
 				// Handle message from client to request a file download
 				filehandling.HandleClientDownloadRequest(gossiper, &message)
 			} else {
@@ -333,6 +335,6 @@ func isClientFileIndexing(clientMsg *core.Message) bool {
 // true if the client did not specify a destination - only wants to index and divide file locally
 func isClientRequestingDownload(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.File), "") != 0 &&
-		(strings.Compare(*(clientMsg.Destination), "") == 0) &&
+		(strings.Compare(*(clientMsg.Destination), "") != 0) &&
 		(len(*clientMsg.Request) != 0))
 }

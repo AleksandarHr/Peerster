@@ -180,7 +180,7 @@ func createFileInformation(name string, numBytes uint32, metafile map[uint32][]b
 }
 
 func computeSha256(data []byte) []byte {
-	hash := sha256.Sum256(data)
+	hash := sha256.Sum256(data[:len(data)])
 	return hash[:]
 }
 
