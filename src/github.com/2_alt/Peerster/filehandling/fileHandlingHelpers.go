@@ -67,6 +67,7 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 	// Encode and send packet
 	packetToSend := core.GossipPacket{DataReply: msg}
 	packetBytes, err := protobuf.Encode(&packetToSend)
+	fmt.Println("HORRIBLE ERROR === ", err, " NUMBER OF BYTES = ", len(packetBytes))
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
 }
@@ -124,13 +125,13 @@ func createFileInformation(name string, numBytes uint32, metafile map[uint32][32
 	// fileInfo.Metafile = concatenateMetafile(hashedChunks)
 	fileInfo.Metafile = metafile
 	fileInfo.NumberOfBytes = uint32(numBytes)
-	fileInfo.MetaHash = computeSha256(newConcatenateMetafile(dataChunks))
+	fileInfo.MetaHash = computeSha256(concatenateMetafile(metafile))
 	fileInfo.ChunksMap = dataChunks
 	return &fileInfo
 }
 
 func computeSha256(data []byte) [32]byte {
-	hash := sha256.Sum256(data[:len(data)])
+	hash := sha256.Sum256(data)
 	return hash
 }
 
@@ -144,22 +145,11 @@ func concatenateMetafile(chunks map[uint32][32]byte) []byte {
 	return metafile
 }
 
-func newConcatenateMetafile(chunks map[string][8192]byte) []byte {
-	metafile := make([]byte, 0)
-	c := make([]byte, 0)
-	for hash, data := range chunks {
-		copy(c, data[:])
-		decoded, _ := hex.DecodeString(hash)
-		metafile = append(metafile, decoded...)
-	}
-	return metafile
-}
-
 func mapifyMetafile(mfile []byte) map[uint32][32]byte {
 	metafile := make(map[uint32][32]byte, 0)
 
 	for i := 0; i < len(mfile); i += 32 {
-		if len(mfile) <= i+32 {
+		if len(mfile) < i+32 {
 			metafile[uint32(i/32)] = convertSliceTo32Fixed(mfile[i:len(mfile)])
 		} else {
 			metafile[uint32(i/32)] = convertSliceTo32Fixed(mfile[i : i+32])
@@ -170,4 +160,24 @@ func mapifyMetafile(mfile []byte) map[uint32][32]byte {
 
 func hashToString(hash [32]byte) string {
 	return hex.EncodeToString(hash[:])
+}
+
+func convertSliceTo32Fixed(slice []byte) [32]byte {
+	var result [32]byte
+	if len(slice) < 32 {
+		copy(result[:], slice[:len(slice)])
+	} else {
+		copy(result[:], slice[:32])
+	}
+	return result
+}
+
+func convertSliceTo8192Fixed(slice []byte) [8192]byte {
+	var result [8192]byte
+	if len(slice) < 8192 {
+		copy(result[:], slice[:len(slice)])
+	} else {
+		copy(result[:], slice[:8192])
+	}
+	return result
 }

@@ -1,16 +1,20 @@
 package filehandling
 
-import "os"
-import "fmt"
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
-import "path/filepath"
+	"github.com/2_alt/Peerster/core"
+)
 
-import "io/ioutil"
-import "github.com/2_alt/Peerster/core"
-
-// fixed file chunk size of 8KB = 8192 bytes
+// fixed file chunk size of 8KB = fixedChunkSize bytes
 const sharedFilesFolder = "./_SharedFiles/"
 const downloadedFilesFolder = "./_Downloads/"
+const fixedChunkSize = 8192
+const fileMode = 0755
+const hashSize = 32
 
 // size of the sha-256 hash in bytes
 // const core.Sha256HashSize = uint32(32)
@@ -18,42 +22,82 @@ const downloadedFilesFolder = "./_Downloads/"
 // HandleFileIndexing - a function to index, divide, hash, and save hashed chunks of a file
 func HandleFileIndexing(fname string) {
 	fmt.Println("About to scanning, indexing and hashing")
-	fileInfo := scanIndexAndHashFile(fname)
-	fmt.Println("Done scanning, indexing and hashing")
-	saveHashesToFiles(fileInfo)
-	fmt.Println("Done saving hashes")
+	everythingAtOnce(fname)
+	// fileInfo := scanIndexAndHashFile(fname)
+	// fmt.Println("Done scanning, indexing and hashing")
+	// saveHashesToFiles(fileInfo)
+	// fmt.Println("Done saving hashes")
 }
 
-func scanIndexAndHashFile(fn string) *core.FileInformation {
-	// open the file
+func everythingAtOnce(fn string) {
+
+	chunksMap := make(map[string][fixedChunkSize]byte)
+	metaFile := make(map[int][32]byte)
+	chunkIndex := 0
+
+	// read file in chunks of 8kb = fixedChunkSize bytes
 	filePath, _ := filepath.Abs(sharedFilesFolder + fn)
-	// file, err := os.Open(filePath)
-	// if err != nil {
-	// 	fmt.Println("Error opening a file: ", err)
-	// }
-	// defer file.Close()
-
-	// buffer := make([]byte, core.FixedChunkSize)
-	chunksMap := make(map[string][8192]byte)
-	metaFile := make(map[uint32][32]byte)
-	chunkIndex := uint32(0)
-
-	// read file in chunks of 8kb = 8192 bytes
 	data, _ := ioutil.ReadFile(filePath)
 	fileSize := len(data)
 
-	for i := 0; i < fileSize; i += 8192 {
+	for i := 0; i < fileSize; i += fixedChunkSize {
 		bytesLeft := fileSize - i
-		ch := make([]byte, 8192)
-		if bytesLeft >= 8192 {
-			ch = data[i : i+8192]
+		ch := make([]byte, fixedChunkSize)
+		if bytesLeft >= fixedChunkSize {
+			ch = data[i : i+fixedChunkSize]
 		} else {
 			ch = data[i:fileSize]
 		}
 		fmt.Println("Bytes read == ", len(ch), " to index == ", chunkIndex)
-		hash := computeSha256(ch)
-		var currChunk [8192]byte
+		var currChunk [fixedChunkSize]byte
 		copy(currChunk[:], ch)
+		hash := computeSha256(currChunk[:])
+		chunksMap[hashToString(hash)] = currChunk
+		metaFile[chunkIndex] = hash
+		chunkIndex++
+
+		chunkPath, _ := filepath.Abs(sharedFilesFolder + "/" + hashToString(hash))
+		ioutil.WriteFile(chunkPath, currChunk[:], fileMode)
+	}
+
+	appendedMetaFile := make([]byte, 32*len(metaFile))
+	for i := 0; i < len(metaFile); i++ {
+		hs := metaFile[i]
+		appendedMetaFile = append(appendedMetaFile, hs[:]...)
+	}
+
+	metahash := computeSha256(appendedMetaFile)
+	metahashString := hashToString(metahash)
+	metafilePath, _ := filepath.Abs(sharedFilesFolder + "/" + metahashString)
+	fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
+	ioutil.WriteFile(metafilePath, appendedMetaFile, fileMode)
+
+}
+
+func scanIndexAndHashFile(fn string) *core.FileInformation {
+
+	// buffer := make([]byte, core.FixedChunkSize)
+	chunksMap := make(map[string][fixedChunkSize]byte)
+	metaFile := make(map[uint32][32]byte)
+	chunkIndex := uint32(0)
+
+	// read file in chunks of 8kb = fixedChunkSize bytes
+	filePath, _ := filepath.Abs(sharedFilesFolder + fn)
+	data, _ := ioutil.ReadFile(filePath)
+	fileSize := len(data)
+
+	for i := 0; i < fileSize; i += fixedChunkSize {
+		bytesLeft := fileSize - i
+		ch := make([]byte, fixedChunkSize)
+		if bytesLeft >= fixedChunkSize {
+			ch = data[i : i+fixedChunkSize]
+		} else {
+			ch = data[i:fileSize]
+		}
+		fmt.Println("Bytes read == ", len(ch), " to index == ", chunkIndex)
+		var currChunk [fixedChunkSize]byte
+		copy(currChunk[:], ch)
+		hash := computeSha256(currChunk[:])
 		chunksMap[hashToString(hash)] = currChunk
 		metaFile[chunkIndex] = hash
 		chunkIndex++
@@ -70,13 +114,13 @@ func scanIndexAndHashFile(fn string) *core.FileInformation {
 	// 		fmt.Println("No bytes read")
 	// 		break
 	// 	}
-	// 	if bytesRead > 8192 {
-	// 		fmt.Println("Chunk read was more than 8192 bytes")
+	// 	if bytesRead > fixedChunkSize {
+	// 		fmt.Println("Chunk read was more than fixedChunkSize bytes")
 	// 		break
 	// 	}
 	// to find the total number of bytes in the file
 	// 	fileSize += bytesRead
-	// 	var currChunk [8192]byte
+	// 	var currChunk [fixedChunkSize]byte
 	// 	copy(currChunk[:], buffer[:bytesRead])
 	//
 	// 	chunkHash := computeSha256(currChunk[:bytesRead])
@@ -99,7 +143,7 @@ func saveHashesToFiles(fileInfo *core.FileInformation) {
 	path, _ := filepath.Abs(sharedFilesFolder)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		fmt.Println("Making a directory :: ", path)
-		os.Mkdir(path, 0755)
+		os.Mkdir(path, fileMode)
 	} else {
 		fmt.Println("Path exists: ", path)
 	}
@@ -107,18 +151,18 @@ func saveHashesToFiles(fileInfo *core.FileInformation) {
 	chunksMap := fileInfo.ChunksMap
 	for name, content := range chunksMap {
 		chunkPath, _ := filepath.Abs(path + "/" + name)
-		if bytesLeft < 8192 {
-			ioutil.WriteFile(chunkPath, content[:bytesLeft], 0755)
+		if bytesLeft < fixedChunkSize {
+			ioutil.WriteFile(chunkPath, content[:bytesLeft], fileMode)
 		} else {
-			ioutil.WriteFile(chunkPath, content[:], 0755)
+			ioutil.WriteFile(chunkPath, content[:], fileMode)
 		}
-		bytesLeft -= 8192
+		bytesLeft -= fixedChunkSize
 	}
 
-	metafile := newConcatenateMetafile(fileInfo.ChunksMap)
+	metafile := concatenateMetafile(fileInfo.Metafile)
 	metafilePath, _ := filepath.Abs(path + "/" + metahashString)
 	fmt.Println("METAHASH is == ", metahashString)
-	ioutil.WriteFile(metafilePath, metafile, 0755)
+	ioutil.WriteFile(metafilePath, metafile, fileMode)
 }
 
 // ========================================

@@ -33,26 +33,6 @@ func HandlePeerDataReply(gossiper *core.Gossiper, dataReply *core.DataReply) {
 	}
 }
 
-func convertSliceTo32Fixed(slice []byte) [32]byte {
-	var result [32]byte
-	if len(slice) < 32 {
-		copy(result[:], slice[:len(slice)])
-	} else {
-		copy(result[:], slice[:32])
-	}
-	return result
-}
-
-func convertSliceTo8192Fixed(slice []byte) [8192]byte {
-	var result [8192]byte
-	if len(slice) < 8192 {
-		copy(result[:], slice[:len(slice)])
-	} else {
-		copy(result[:], slice[:8192])
-	}
-	return result
-}
-
 // HandlePeerDataRequest - a function to handle data requests from other peers
 func HandlePeerDataRequest(gossiper *core.Gossiper, dataRequest *core.DataRequest) {
 	// if dataRequest message has reached destination
@@ -127,11 +107,11 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 				if !replyWasExpected(gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk[:], reply) {
 					// received data reply for a chunk that was not requested; do nothing
 				}
-				fmt.Println("@@@@@@ ", len(reply.Data))
-				fmt.Println("Index should be ", gossiper.DownloadingStates[downloadFrom].NextChunkIndex)
+				fmt.Println("xxxxxxxxx Data length == ", len(reply.Data))
+				fmt.Println("Next index is = ", gossiper.DownloadingStates[downloadFrom].NextChunkIndex)
 				if !replyIntegrityCheck(reply) {
 					// received data reply with mismatching hash and data; resend request
-					// fmt.Println("-------------------- Integrity check FAILED")
+					fmt.Println("-------------------- Integrity check FAILED")
 					resendDataRequest(gossiper, downloadFrom)
 				} else {
 					fmt.Println("-------------------- Integrity check PASSED")
@@ -147,12 +127,11 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 						chunkData := convertSliceTo8192Fixed(reply.Data)
 						gossiper.DownloadingStates[downloadFrom].FileInfo.ChunksMap[chunkHashString] = chunkData
 						gossiper.DownloadingStates[downloadFrom].NextChunkIndex++
+
+						// save chunk to a new file
+						chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
+						ioutil.WriteFile(chunkPath, chunkData[:], 0755)
 					}
-					// save chunk to a new file
-					chunkHashValue := convertSliceTo32Fixed(reply.HashValue)
-					chunkData := reply.Data
-					chunkPath, _ := filepath.Abs(downloadedFilesFolder + hashToString(chunkHashValue))
-					ioutil.WriteFile(chunkPath, chunkData, 0777)
 
 					// if that was the last chunk to be downloaded close the chanel and save the full file
 					if wasLastFileChunk(gossiper, reply) {
@@ -166,7 +145,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 						ticker = time.NewTicker(5 * time.Second)
 						nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
 						fmt.Println("Next chunk ID = ", nextChunkIdx)
-						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx]
+						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx+1]
 						fmt.Println("Next hash to request = ", hashToString(nextHashToRequest))
 						gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextHashToRequest
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
@@ -183,11 +162,14 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply) {
 	metafile := mapifyMetafile(reply.Data)
 	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = metafile
 	gossiper.DownloadingStates[reply.Origin].MetafileDownloaded = true
-
+	fmt.Println("Printing received metafile with hash == ", hashToString(computeSha256(reply.Data)))
+	for i := 0; i < len(metafile); i++ {
+		fmt.Println("Index = ", uint32(i), " ::: Hash = ", hashToString(metafile[uint32(i)]))
+	}
 	// write metafile to file system
 	path, _ := filepath.Abs(downloadedFilesFolder)
 	metafilePath, _ := filepath.Abs(path + "/" + hashToString(convertSliceTo32Fixed(reply.HashValue)))
-	ioutil.WriteFile(metafilePath, reply.Data, 0777)
+	ioutil.WriteFile(metafilePath, reply.Data, 0755)
 }
 
 func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
