@@ -7,22 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	// import "crypto/sha256"
-	// import "encoding/hex"
+
 	"github.com/2_alt/Peerster/core"
-	"github.com/2_alt/Peerster/helpers"
-	"github.com/dedis/protobuf"
 )
-
-func createDataRequest(origin string, dest string, hash []byte) *core.DataRequest {
-	request := core.DataRequest{Origin: origin, Destination: dest, HopLimit: uint32(10), HashValue: hash[:]}
-	return &request
-}
-
-func createDataReply(origin string, dest string, hash []byte, data []byte) *core.DataReply {
-	reply := core.DataReply{Origin: origin, Destination: dest, HopLimit: uint32(10), HashValue: hash[:], Data: data}
-	return &reply
-}
 
 // HandlePeerDataReply - a function to handle data reply from other peers
 func HandlePeerDataReply(gossiper *core.Gossiper, dataReply *core.DataReply) {
@@ -210,100 +197,4 @@ func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
 	metafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile
 	lastChunkInMetafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile[uint32(len(metafile)-1)]
 	return bytes.Compare(reply.HashValue, lastChunkInMetafile[:]) == 0
-}
-
-// ===================================================================
-
-// TODO:  Duplicated code -REFACTOR!!!
-// A function to forward a data request to the corresponding next hop
-func forwardDataRequest(gossiper *core.Gossiper, msg *core.DataRequest) {
-
-	if msg.HopLimit == 0 {
-		// if we have reached the HopLimit, drop the message
-		return
-	}
-
-	forwardingAddress := gossiper.DestinationTable[msg.Destination]
-	// If current node has no information about next hop to the destination in question
-	if strings.Compare(forwardingAddress, "") == 0 {
-		fmt.Println("NO FORWARDING ADDRESS AGAIN :??")
-		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
-	}
-
-	// Decrement the HopLimit right before forwarding the packet
-	msg.HopLimit--
-	// Encode and send packet
-	packetToSend := core.GossipPacket{DataRequest: msg}
-	packetBytes, err := protobuf.Encode(&packetToSend)
-	helpers.HandleErrorFatal(err)
-	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
-}
-
-// A function to forward a data request to the corresponding next hop
-func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
-	if msg.HopLimit == 0 {
-		// if we have reached the HopLimit, drop the message
-		return
-	}
-
-	forwardingAddress := gossiper.DestinationTable[msg.Destination]
-	// If current node has no information about next hop to the destination in question
-	if strings.Compare(forwardingAddress, "") == 0 {
-		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
-	}
-
-	// Decrement the HopLimit right before forwarding the packet
-	msg.HopLimit--
-	// Encode and send packet
-	packetToSend := core.GossipPacket{DataReply: msg}
-	packetBytes, err := protobuf.Encode(&packetToSend)
-	helpers.HandleErrorFatal(err)
-	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
-}
-
-// a function to resend the latest requested chunk
-func resendDataRequest(gossiper *core.Gossiper, downloadFrom string) {
-	if state, ok := gossiper.DownloadingStates[downloadFrom]; ok {
-		chunkToRerequest := state.LatestRequestedChunk
-		request := createDataRequest(gossiper.Name, downloadFrom, chunkToRerequest[:])
-		forwardDataRequest(gossiper, request)
-	}
-}
-
-// returns true if the received data reply corresponds to the latest requested hash
-func replyWasExpected(requestHash []byte, reply *core.DataReply) bool {
-	return bytes.Compare(requestHash, reply.HashValue) == 0
-}
-
-// returns true if the hash value in the reply corresponds to the data
-func replyIntegrityCheck(reply *core.DataReply) bool {
-	dataHash := computeSha256(reply.Data)
-	actualHash := reply.HashValue
-	return bytes.Compare(actualHash, dataHash[:]) == 0
-}
-
-func reconstructAndSaveFullyDownloadedFile(fileInfo *core.FileInformation) {
-	// create a file
-	fileData := make([]byte, 0)
-	for _, chunk := range fileInfo.ChunksMap {
-		// concatenate all file chunks into a single array
-		fileData = append(fileData, chunk[:]...)
-	}
-	// create and write to file
-	path, _ := filepath.Abs(downloadedFilesFolder)
-	filePath, _ := filepath.Abs(path + "/" + fileInfo.FileName)
-	ioutil.WriteFile(filePath, fileData[:], 0777)
-}
-
-func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
-	downloadFrom := clientMsg.Destination
-	fileName := clientMsg.File
-	var requestedMetaHash [32]byte
-	copy(requestedMetaHash[:], (*clientMsg.Request)[:32])
-	fInfo := &core.FileInformation{FileName: *fileName, MetaHash: requestedMetaHash,
-		Metafile: make(map[uint32][32]byte, 0), ChunksMap: make(map[string][8192]byte, 0)}
-	state := core.DownloadingState{FileInfo: fInfo, DownloadFinished: false, MetafileDownloaded: false,
-		MetafileRequested: true, NextChunkIndex: uint32(0), ChunksToRequest: make([][]byte, 0),
-		DownloadingFrom: *downloadFrom, DownloadChanel: make(chan *core.DataReply)}
-	return &state
 }

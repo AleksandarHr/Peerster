@@ -13,7 +13,6 @@ type FileInformation struct {
 	MetaHash      [32]byte
 	Metafile      map[uint32][32]byte
 	ChunksMap     map[string][8192]byte
-	// HashedChunksMap map[string][]byte
 }
 
 // SimpleMessage simple message for part 1
