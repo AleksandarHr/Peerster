@@ -127,23 +127,21 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 				if !replyWasExpected(gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk[:], reply) {
 					// received data reply for a chunk that was not requested; do nothing
 				}
+				fmt.Println("@@@@@@ ", len(reply.Data))
+				fmt.Println("Index should be ", gossiper.DownloadingStates[downloadFrom].NextChunkIndex)
 				if !replyIntegrityCheck(reply) {
 					// received data reply with mismatching hash and data; resend request
-					fmt.Println("-------------------- Integrity check FAILED")
-					fmt.Println("Reply Hash = ", hashToString(convertSliceTo32Fixed(reply.HashValue)))
-					fmt.Println("Data Hash = ", hashToString(computeSha256(reply.Data)))
+					// fmt.Println("-------------------- Integrity check FAILED")
 					resendDataRequest(gossiper, downloadFrom)
 				} else {
 					fmt.Println("-------------------- Integrity check PASSED")
 					if gossiper.DownloadingStates[downloadFrom].MetafileRequested &&
 						!gossiper.DownloadingStates[downloadFrom].MetafileDownloaded {
 						// the datareply SHOULD contain the metafile then
-						fmt.Println("ooooooooooooooooooo We should get int here first!!!")
 						handleReceivedMetafile(gossiper, reply)
 					} else {
 						// the datareply SHOULD be containing a file data chunk
 						// update FileInfo struct
-						fmt.Println("xxxxxxxxxxxxx We should not be getting here more than once")
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
 						chunkData := convertSliceTo8192Fixed(reply.Data)
@@ -164,7 +162,6 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 						reconstructAndSaveFullyDownloadedFile(gossiper.DownloadingStates[downloadFrom].FileInfo)
 						delete(gossiper.DownloadingStates, downloadFrom)
 					} else {
-						fmt.Println("++++++++++++++ Have more chunks to download. Request next chunk")
 						// if not, get next chunk request, (update ticker) and send it
 						ticker = time.NewTicker(5 * time.Second)
 						nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex

@@ -124,7 +124,7 @@ func createFileInformation(name string, numBytes uint32, metafile map[uint32][32
 	// fileInfo.Metafile = concatenateMetafile(hashedChunks)
 	fileInfo.Metafile = metafile
 	fileInfo.NumberOfBytes = uint32(numBytes)
-	fileInfo.MetaHash = computeSha256(concatenateMetafile(metafile))
+	fileInfo.MetaHash = computeSha256(newConcatenateMetafile(dataChunks))
 	fileInfo.ChunksMap = dataChunks
 	return &fileInfo
 }
@@ -139,8 +139,18 @@ func concatenateMetafile(chunks map[uint32][32]byte) []byte {
 
 	for i := 0; i < len(chunks); i++ {
 		ch := chunks[uint32(i)]
-		fmt.Println("Appending a chunk with ID = ", i, "and length = ", len(ch), " and a hash = ", hashToString(ch))
 		metafile = append(metafile, ch[:]...)
+	}
+	return metafile
+}
+
+func newConcatenateMetafile(chunks map[string][8192]byte) []byte {
+	metafile := make([]byte, 0)
+	c := make([]byte, 0)
+	for hash, data := range chunks {
+		copy(c, data[:])
+		decoded, _ := hex.DecodeString(hash)
+		metafile = append(metafile, decoded...)
 	}
 	return metafile
 }
