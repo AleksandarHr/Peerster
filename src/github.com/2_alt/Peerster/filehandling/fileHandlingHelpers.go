@@ -67,7 +67,6 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 	// Encode and send packet
 	packetToSend := core.GossipPacket{DataReply: msg}
 	packetBytes, err := protobuf.Encode(&packetToSend)
-	fmt.Println("HORRIBLE ERROR === ", err, " NUMBER OF BYTES = ", len(packetBytes))
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
 }
@@ -96,10 +95,16 @@ func replyIntegrityCheck(reply *core.DataReply) bool {
 func reconstructAndSaveFullyDownloadedFile(fileInfo *core.FileInformation) {
 	// create a file
 	fileData := make([]byte, 0)
-	for _, chunk := range fileInfo.ChunksMap {
-		// concatenate all file chunks into a single array
+	numChunks := len(fileInfo.Metafile)
+	for i := uint32(0); i < uint32(numChunks); i++ {
+		chunkHash := fileInfo.Metafile[i]
+		chunk := fileInfo.ChunksMap[hashToString(chunkHash)]
 		fileData = append(fileData, chunk[:]...)
 	}
+	// for _, chunk := range fileInfo.ChunksMap {
+	// 	// concatenate all file chunks into a single array
+	// 	fileData = append(fileData, chunk[:]...)
+	// }
 	// create and write to file
 	path, _ := filepath.Abs(downloadedFilesFolder)
 	filePath, _ := filepath.Abs(path + "/" + fileInfo.FileName)

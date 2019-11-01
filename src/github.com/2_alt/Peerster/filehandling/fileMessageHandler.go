@@ -114,7 +114,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 					fmt.Println("-------------------- Integrity check FAILED")
 					resendDataRequest(gossiper, downloadFrom)
 				} else {
-					fmt.Println("-------------------- Integrity check PASSED")
+					// fmt.Println("-------------------- Integrity check PASSED")
 					if gossiper.DownloadingStates[downloadFrom].MetafileRequested &&
 						!gossiper.DownloadingStates[downloadFrom].MetafileDownloaded {
 						// the datareply SHOULD contain the metafile then
@@ -122,6 +122,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 					} else {
 						// the datareply SHOULD be containing a file data chunk
 						// update FileInfo struct
+						fmt.Println("----------------------Received a chunk with bytes length = ", len(reply.Data))
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
 						chunkData := convertSliceTo8192Fixed(reply.Data)
@@ -145,7 +146,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 						ticker = time.NewTicker(5 * time.Second)
 						nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
 						fmt.Println("Next chunk ID = ", nextChunkIdx)
-						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx+1]
+						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx]
 						fmt.Println("Next hash to request = ", hashToString(nextHashToRequest))
 						gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextHashToRequest
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
