@@ -17,10 +17,6 @@ const hashSize = 32
 
 // HandleFileIndexing - a function to index, divide, hash, and save hashed chunks of a file
 func HandleFileIndexing(fname string) {
-	breakFileIntoChunks(fname)
-}
-
-func breakFileIntoChunks(fname string) {
 
 	filePath, _ := filepath.Abs(sharedFilesFolder + fname)
 	file, err := os.Open(filePath)
@@ -68,39 +64,4 @@ func breakFileIntoChunks(fname string) {
 	metafilePath, _ := filepath.Abs(sharedFilesFolder + "/" + metahashString)
 	fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
 	ioutil.WriteFile(metafilePath, appendedMetaFile, fileMode)
-}
-
-// ========================================
-//              Chunks Handling
-// ========================================
-
-// Handle requested hash from file system
-// ======================================
-func retrieveRequestedHashFromFileSystem(requestedHash [32]byte) []byte {
-	hashBytes := getChunkOrMetafileFromFileSystem(requestedHash)
-	if hashBytes != nil {
-		// if the requested hash  was a filechunk
-		return hashBytes
-	}
-	return nil
-}
-
-// if the given fileInfo has the requested chunk, return it
-func getChunkOrMetafileFromFileSystem(chunkHash [32]byte) []byte {
-	hashString := hashToString(chunkHash)
-	// Look for chunk in the _SharedFiles folder
-	sharedPath, _ := filepath.Abs(sharedFilesFolder + hashString)
-	if _, err := os.Stat(sharedPath); err == nil {
-		data, _ := ioutil.ReadFile(sharedPath)
-		return data
-	}
-
-	// Look for chunk in the _DownloadedFiles folder
-	downloadsPath, _ := filepath.Abs(downloadedFilesFolder + hashString)
-	if _, err := os.Stat(downloadsPath); err == nil {
-		data, _ := ioutil.ReadFile(downloadsPath)
-		return data
-	}
-
-	return nil
 }

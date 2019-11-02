@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -185,4 +186,39 @@ func convertSliceTo8192Fixed(slice []byte) [8192]byte {
 		copy(result[:], slice[:8192])
 	}
 	return result
+}
+
+// ========================================
+//              Chunks Handling
+// ========================================
+
+// Handle requested hash from file system
+// ======================================
+func retrieveRequestedHashFromFileSystem(requestedHash [32]byte) []byte {
+	hashBytes := getChunkOrMetafileFromFileSystem(requestedHash)
+	if hashBytes != nil {
+		// if the requested hash  was a filechunk
+		return hashBytes
+	}
+	return nil
+}
+
+// if the given fileInfo has the requested chunk, return it
+func getChunkOrMetafileFromFileSystem(chunkHash [32]byte) []byte {
+	hashString := hashToString(chunkHash)
+	// Look for chunk in the _SharedFiles folder
+	sharedPath, _ := filepath.Abs(sharedFilesFolder + hashString)
+	if _, err := os.Stat(sharedPath); err == nil {
+		data, _ := ioutil.ReadFile(sharedPath)
+		return data
+	}
+
+	// Look for chunk in the _DownloadedFiles folder
+	downloadsPath, _ := filepath.Abs(downloadedFilesFolder + hashString)
+	if _, err := os.Stat(downloadsPath); err == nil {
+		data, _ := ioutil.ReadFile(downloadsPath)
+		return data
+	}
+
+	return nil
 }

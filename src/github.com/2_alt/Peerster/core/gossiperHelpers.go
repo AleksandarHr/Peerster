@@ -1,66 +1,47 @@
 package core
-import "github.com/dedis/protobuf"
+
 import "github.com/2_alt/Peerster/helpers"
-import "net"
+
 import "fmt"
 import "strconv"
 import "strings"
-import "encoding/hex"
 
-// ClientConnectAndSend connects to the given gossiper's address and send the text to it.
-// This function is used by the server to send a message to the gossiper.
-func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string, request *string) {
-	// Create GossipPacket and encapsulate message into it
-	requestBytes := make([]byte, 0)
-	msg := &Message{Text: *text, Destination: destination, File: fileToShare}
-	if strings.Compare(*request, "") != 0 {
-		decoded, err := hex.DecodeString(*request)
-		if err == nil {
-			requestBytes = decoded
-		}
-	}
-	msg.Request = &requestBytes
-	packetBytes, err := protobuf.Encode(msg)
-	helpers.HandleErrorFatal(err)
+//===============================================
+//===============================================
+// 							Gossiper Getters
+//===============================================
+//===============================================
 
-	// Connect
-	dst, err := net.ResolveUDPAddr("udp4", remoteAddr)
-	_ = dst
-	helpers.HandleErrorFatal(err)
-	conn, err := net.DialUDP("udp4", nil, dst)
-	helpers.HandleErrorFatal(err)
-	defer conn.Close()
-
-	// Send packet
-	_, err = conn.Write(packetBytes)
-	helpers.HandleErrorFatal(err)
+// GetUIPort Get the gossiper's UI port
+func (g *Gossiper) GetUIPort() string {
+	return g.uiPort
 }
 
-// ConnectAndSend Connect to the given address and send the packet
-func ConnectAndSend(addressAndPort string, conn *net.UDPConn, packetToSend []byte) {
-	// If a Peerster does not know any other Peers, the address can be an empty string
-	if strings.Compare(addressAndPort, "") == 0 {
-		return
-	}
-
-	// Resolve destination address
-	dst, err := net.ResolveUDPAddr("udp4", addressAndPort)
-	helpers.HandleErrorFatal(err)
-
-	// Send packet
-	_, err = conn.WriteToUDP(packetToSend, dst)
-	helpers.HandleErrorFatal(err)
+// GetLocalAddr Get the gossiper's localConn as a string
+func (g *Gossiper) GetLocalAddr() string {
+	return g.LocalAddr.String()
 }
 
+// GetAllRumors Get the rumors known by the gossiper
+func (g *Gossiper) GetAllRumors() []RumorMessage {
+	return g.KnownRumors
+}
 
-// ContainsRumor Check if a list contains a Rumor, return it if true
-func ContainsRumor(list []RumorMessage, r *RumorMessage) bool {
-	for _, rm := range list {
-		if strings.Compare(r.Origin, rm.Origin) == 0 && r.ID == rm.ID {
-			return true
+// GetAllKnownPeers Get the known peers of this gossiper
+func (g *Gossiper) GetAllKnownPeers() []string {
+	return g.KnownPeers
+}
+
+// AddPeer Add a peer to the list of known peers
+func (g *Gossiper) AddPeer(address string) {
+	if helpers.IPAddressIsValid(address) {
+		for _, peer := range g.KnownPeers {
+			if strings.Compare(peer, address) == 0 {
+				return
+			}
 		}
+		g.KnownPeers = append(g.KnownPeers, address)
 	}
-	return false
 }
 
 // IsRumorOriginKnown Check if a Rumor Origin is known and return the last Rumor ID we know
@@ -131,7 +112,7 @@ func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
 
 		if toUpdate {
 			destinationTable[rumorOrigin] = fromAddr
-			if toPrint{
+			if toPrint {
 				helpers.PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
 			}
 		}
@@ -142,7 +123,6 @@ func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
 func IsRouteRumor(rumor *RumorMessage) bool {
 	return (strings.Compare(rumor.Text, "") == 0)
 }
-
 
 // PrintOutputStatus print on the console
 func PrintOutputStatus(fromAddr string, listOfWanted []PeerStatus, knownPeers []string) {

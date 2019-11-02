@@ -107,14 +107,10 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 				if !replyWasExpected(gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk[:], reply) {
 					// received data reply for a chunk that was not requested; do nothing
 				}
-				fmt.Println("xxxxxxxxx Data length == ", len(reply.Data))
-				fmt.Println("Next index is = ", gossiper.DownloadingStates[downloadFrom].NextChunkIndex)
 				if !replyIntegrityCheck(reply) {
 					// received data reply with mismatching hash and data; resend request
-					fmt.Println("-------------------- Integrity check FAILED")
 					resendDataRequest(gossiper, downloadFrom)
 				} else {
-					// fmt.Println("-------------------- Integrity check PASSED")
 					if gossiper.DownloadingStates[downloadFrom].MetafileRequested &&
 						!gossiper.DownloadingStates[downloadFrom].MetafileDownloaded {
 						// the datareply SHOULD contain the metafile then
@@ -122,7 +118,6 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 					} else {
 						// the datareply SHOULD be containing a file data chunk
 						// update FileInfo struct
-						fmt.Println("----------------------Received a chunk with bytes length = ", len(reply.Data))
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
 						chunkData := convertSliceTo8192Fixed(reply.Data)
@@ -145,9 +140,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 						// if not, get next chunk request, (update ticker) and send it
 						ticker = time.NewTicker(5 * time.Second)
 						nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
-						fmt.Println("Next chunk ID = ", nextChunkIdx)
 						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx]
-						fmt.Println("Next hash to request = ", hashToString(nextHashToRequest))
 						gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextHashToRequest
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
 						forwardDataRequest(gossiper, request)
@@ -163,10 +156,7 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply) {
 	metafile := mapifyMetafile(reply.Data)
 	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = metafile
 	gossiper.DownloadingStates[reply.Origin].MetafileDownloaded = true
-	fmt.Println("Printing received metafile with hash == ", hashToString(computeSha256(reply.Data)))
-	for i := 0; i < len(metafile); i++ {
-		fmt.Println("Index = ", uint32(i), " ::: Hash = ", hashToString(metafile[uint32(i)]))
-	}
+
 	// write metafile to file system
 	path, _ := filepath.Abs(downloadedFilesFolder)
 	metafilePath, _ := filepath.Abs(path + "/" + hashToString(convertSliceTo32Fixed(reply.HashValue)))
