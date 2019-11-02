@@ -39,22 +39,20 @@ func privateMessageReachedDestination(gossiperPtr *core.Gossiper, msg *core.Priv
 // A function to forward a private message to the corresponding next hop
 func forwardPrivateMessage(gossiperPtr *core.Gossiper, msg *core.PrivateMessage) {
 
-	if msg.HopLimit == 0 {
-		// if we have reached the HopLimit, drop the message
-		return
-	}
+	// If current node has next-hop information about the message destination
+	if forwardingAddress, ok := gossiperPtr.DestinationTable[msg.Destination]; ok {
+		if msg.HopLimit == 0 {
+			// if we have reached the HopLimit, drop the message
+			return
+		}
 
-	forwardingAddress := gossiperPtr.DestinationTable[msg.Destination]
-	// If current node has no information about next hop to the destination in question
-	if strings.Compare(forwardingAddress, "") == 0 {
-		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
-	}
+		// Decrement the HopLimit right before forwarding the packet
+		msg.HopLimit--
 
-	// Decrement the HopLimit right before forwarding the packet
-	msg.HopLimit--
-	// Encode and send packet
-	packetToSend := core.GossipPacket{Private: msg}
-	packetBytes, err := protobuf.Encode(&packetToSend)
-	helpers.HandleErrorFatal(err)
-	core.ConnectAndSend(forwardingAddress, gossiperPtr.Conn, packetBytes)
+		// Encode and send packet
+		packetToSend := core.GossipPacket{Private: msg}
+		packetBytes, err := protobuf.Encode(&packetToSend)
+		helpers.HandleErrorFatal(err)
+		core.ConnectAndSend(forwardingAddress, gossiperPtr.Conn, packetBytes)
+	}
 }

@@ -105,8 +105,10 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				}
 
 				// Update destiantionTable
-				core.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
-					gossiper.DestinationTable, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
+				if strings.Compare(gossiper.Name, gossipPacket.Rumor.Origin) != 0 {
+					core.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
+						gossiper.DestinationTable, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
+				}
 
 				// Send status
 				sendStatus(gossiper, fromAddr)
