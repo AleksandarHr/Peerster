@@ -89,31 +89,34 @@ func IsRumorKnown(listOfWanted []PeerStatus, r *RumorMessage) (bool, bool, uint3
 // ========================================================
 
 //UpdateDestinationTable - a function to update destination table (if needed) on receiving a rumor
-func UpdateDestinationTable(rumorOrigin string, rumorID uint32, fromAddr string,
+func UpdateDestinationTable(ownName string, rumorOrigin string, rumorID uint32, fromAddr string,
 	destinationTable map[string]string, knownRumors []RumorMessage, originIsKnown bool, toPrint bool) {
 
-	if !originIsKnown {
-		// First rumor from Origin
-		destinationTable[rumorOrigin] = fromAddr
-		if toPrint {
-			helpers.PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
-		}
-	} else {
-		// Update table if the sequence number of the rumor is greater than any known rumors' ID
-		//	from the same origin
-		toUpdate := true
-		for _, r := range knownRumors {
-			if strings.Compare(r.Origin, rumorOrigin) == 0 {
-				if r.ID >= rumorID {
-					toUpdate = false
-				}
-			}
-		}
-
-		if toUpdate {
+	toPrint = true
+	if strings.Compare(ownName, rumorOrigin) != 0 {
+		if !originIsKnown {
+			// First rumor from Origin
 			destinationTable[rumorOrigin] = fromAddr
 			if toPrint {
 				helpers.PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+			}
+		} else {
+			// Update table if the sequence number of the rumor is greater than any known rumors' ID
+			//	from the same origin
+			toUpdate := true
+			for _, r := range knownRumors {
+				if strings.Compare(r.Origin, rumorOrigin) == 0 {
+					if r.ID >= rumorID {
+						toUpdate = false
+					}
+				}
+			}
+
+			if toUpdate {
+				destinationTable[rumorOrigin] = fromAddr
+				if toPrint {
+					helpers.PrintOutputUpdatingDSDV(rumorOrigin, fromAddr)
+				}
 			}
 		}
 	}

@@ -1,14 +1,13 @@
 package filehandling
 
 import (
-	"bytes"
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/2_alt/Peerster/core"
+	"github.com/2_alt/Peerster/helpers"
 )
 
 // HandlePeerDataReply - a function to handle data reply from other peers
@@ -101,7 +100,6 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 			resendDataRequest(gossiper, downloadFrom)
 		case reply := <-ch:
 			if reply != nil {
-				// TODO: SEE WHY USED TO RECEIVE NIL REPLIES
 				// if a dataReply comes from the chanel
 				// sanity check - make sure it is a reply to my last request
 				if !replyWasExpected(gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk[:], reply) {
@@ -111,13 +109,15 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 					// received data reply with mismatching hash and data; resend request
 					resendDataRequest(gossiper, downloadFrom)
 				} else {
+					fname := gossiper.DownloadingStates[downloadFrom].FileInfo.FileName
 					if gossiper.DownloadingStates[downloadFrom].MetafileRequested &&
 						!gossiper.DownloadingStates[downloadFrom].MetafileDownloaded {
 						// the datareply SHOULD contain the metafile then
-						handleReceivedMetafile(gossiper, reply)
+						handleReceivedMetafile(gossiper, reply, fname)
 					} else {
 						// the datareply SHOULD be containing a file data chunk
 						// update FileInfo struct
+						helpers.PrintDownloadingChunk(fname, downloadFrom, gossiper.DownloadingStates[downloadFrom].NextChunkIndex+1)
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
 						chunkData := convertSliceTo8192Fixed(reply.Data)
@@ -131,7 +131,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 
 					// if that was the last chunk to be downloaded close the chanel and save the full file
 					if wasLastFileChunk(gossiper, reply) {
-						fmt.Println("=============== Downloaded all the chunks. Time to reconstruct the file")
+						helpers.PrintReconstructedFile(fname)
 						gossiper.DownloadingStates[downloadFrom].DownloadFinished = true
 						close(gossiper.DownloadingStates[downloadFrom].DownloadChanel)
 						reconstructAndSaveFullyDownloadedFile(gossiper.DownloadingStates[downloadFrom].FileInfo)
@@ -151,20 +151,14 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string) {
 	}
 }
 
-func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply) {
+func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fname string) {
 	// read the metafile and populate hashedChunks in the file
 	metafile := mapifyMetafile(reply.Data)
 	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = metafile
 	gossiper.DownloadingStates[reply.Origin].MetafileDownloaded = true
 
+	helpers.PrintDownloadingMetafile(fname, reply.Origin)
 	// write metafile to file system
-	path, _ := filepath.Abs(downloadedFilesFolder)
-	metafilePath, _ := filepath.Abs(path + "/" + hashToString(convertSliceTo32Fixed(reply.HashValue)))
+	metafilePath := buildChunkPath(downloadedFilesFolder, reply.HashValue)
 	ioutil.WriteFile(metafilePath, reply.Data, 0755)
-}
-
-func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
-	metafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile
-	lastChunkInMetafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile[uint32(len(metafile)-1)]
-	return bytes.Compare(reply.HashValue, lastChunkInMetafile[:]) == 0
 }

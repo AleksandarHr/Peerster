@@ -222,3 +222,14 @@ func getChunkOrMetafileFromFileSystem(chunkHash [32]byte) []byte {
 
 	return nil
 }
+
+func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
+	metafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile
+	lastChunkInMetafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile[uint32(len(metafile)-1)]
+	return bytes.Compare(reply.HashValue, lastChunkInMetafile[:]) == 0
+}
+
+func buildChunkPath(folder string, hashValue []byte) string {
+	chunkPath, _ := filepath.Abs(folder + "/" + hashToString(convertSliceTo32Fixed(hashValue)))
+	return chunkPath
+}
