@@ -30,13 +30,13 @@ func HandleFileIndexing(fname string) {
 	fInfo, _ := file.Stat()
 	var fSize int64 = fInfo.Size()
 	totalChunksCount := uint64(math.Ceil(float64(fSize) / float64(fixedChunkSize)))
-	fmt.Println("Spliiting into ", totalChunksCount, " chunks.")
+	// fmt.Println("Spliiting into ", totalChunksCount, " chunks.")
 
 	metaFile := make(map[uint64][hashSize]byte)
 
 	for i := uint64(0); i < totalChunksCount; i++ {
 		currChunkSize := int(math.Min(fixedChunkSize, float64(fSize-int64(i*fixedChunkSize))))
-		fmt.Println("Chunk ", i, " has size of ", currChunkSize, " bytes")
+		// fmt.Println("Chunk ", i, " has size of ", currChunkSize, " bytes")
 		buffer := make([]byte, currChunkSize)
 		file.Read(buffer)
 
@@ -62,6 +62,6 @@ func HandleFileIndexing(fname string) {
 	metahash := computeSha256(appendedMetaFile)
 	metahashString := hashToString(metahash)
 	metafilePath, _ := filepath.Abs(sharedFilesFolder + "/" + metahashString)
-	fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
+	// fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
 	ioutil.WriteFile(metafilePath, appendedMetaFile, fileMode)
 }

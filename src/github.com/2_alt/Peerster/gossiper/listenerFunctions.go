@@ -1,7 +1,6 @@
 package gossiper
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -105,7 +104,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				}
 
 				// Update destiantionTable
-				core.UpdateDestinationTable(gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
+				core.UpdateDestinationTable(gossiper.Name, gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
 					gossiper.DestinationTable, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
 
 				// Send status
@@ -286,7 +285,6 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 				//Handle messages from client to simply index a file
 				filehandling.HandleFileIndexing(*message.File)
 			} else if isClientRequestingDownload(&message) {
-				fmt.Println("Message is a download request")
 				// Handle message from client to request a file download
 				filehandling.HandleClientDownloadRequest(gossiper, &message)
 			} else {

@@ -41,7 +41,7 @@ type Gossiper struct {
 	MongeringStatus   []*MongeringStatus
 	uiPort            string
 	DestinationTable  map[string]string
-	DownloadingStates map[string]*DownloadingState
+	DownloadingStates map[string][]*DownloadingState
 	DownloadingLock   sync.Mutex
 }
 
@@ -71,6 +71,6 @@ func NewGossiper(address string, name string,
 		MongeringStatus:   make([]*MongeringStatus, 0),
 		uiPort:            UIPort,
 		DestinationTable:  make(map[string]string),
-		DownloadingStates: make(map[string]*DownloadingState),
+		DownloadingStates: make(map[string][]*DownloadingState),
 	}
 }

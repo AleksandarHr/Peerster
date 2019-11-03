@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -37,7 +36,7 @@ func forwardDataRequest(gossiper *core.Gossiper, msg *core.DataRequest) {
 	forwardingAddress := gossiper.DestinationTable[msg.Destination]
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
-		fmt.Println("NO FORWARDING ADDRESS AGAIN :??")
+		// fmt.Println("NO FORWARDING ADDRESS AGAIN :??")
 		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
 	}
 
@@ -107,7 +106,7 @@ func reconstructAndSaveFullyDownloadedFile(fileInfo *core.FileInformation) {
 	// 	fileData = append(fileData, chunk[:]...)
 	// }
 	// create and write to file
-	path, _ := filepath.Abs(downloadedFilesFolder)
+	path, _ := filepath.Abs(sharedFilesFolder)
 	filePath, _ := filepath.Abs(path + "/" + fileInfo.FileName)
 	ioutil.WriteFile(filePath, fileData[:], 0777)
 }

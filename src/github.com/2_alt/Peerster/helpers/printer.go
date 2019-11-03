@@ -64,25 +64,25 @@ func PrintOutputFlippedCoin(addr string) {
 
 //PrintOutputUpdatingDSDV print on the console
 func PrintOutputUpdatingDSDV(peerName string, ipPort string) {
-	fmt.Println("DSDV " + peerName + " " + ipPort)
+	fmt.Printf("DSDV %s %s\n", peerName, ipPort)
 }
 
 //PrintOutputPrivateMessage print to console
 func PrintOutputPrivateMessage(origin string, hopLimit uint32, contents string) {
-	fmt.Println("PRIVATE origin " + origin + " hop-limit " + fmt.Sprint(hopLimit) + " contents " + contents)
+	fmt.Printf("PRIVATE origin %s hop-limit %d contents %s", origin, hopLimit, contents)
 }
 
 // PrintDownloadingMetafile print to console
 func PrintDownloadingMetafile(fname string, downloadFrom string) {
-	fmt.Println("DOWNLOADING metafile of ", fname, " from ", downloadFrom)
+	fmt.Printf("DOWNLOADING metafile of %s from %s\n", fname, downloadFrom)
 }
 
 // PrintDownloadingChunk print to console
 func PrintDownloadingChunk(fname string, downloadFrom string, idx uint32) {
-	fmt.Println("DOWNLOADING ", fname, " chunk ", idx, " from ", downloadFrom)
+	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, idx, downloadFrom)
 }
 
 // PrintReconstructedFile print to console
 func PrintReconstructedFile(fname string) {
-	fmt.Println("RECONSTRUCTED file ", fname)
+	fmt.Printf("RECONSTRUCTED file %s\n", fname)
 }
