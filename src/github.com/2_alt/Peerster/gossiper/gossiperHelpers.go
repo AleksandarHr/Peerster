@@ -7,13 +7,13 @@ import (
 )
 
 // Retrieve a Rumor from a list given its Origin and ID
-func getRumor(g *core.Gossiper, o string, i uint32) core.RumorMessage {
+func getRumor(g *core.Gossiper, o string, i uint32) *core.RumorMessage {
 	for _, rm := range g.KnownRumors {
 		if strings.Compare(o, rm.Origin) == 0 && i == rm.ID {
-			return rm
+			return &rm
 		}
 	}
-	return core.RumorMessage{}
+	return nil
 }
 
 // Update a slice of Rumor without duplicates
@@ -61,6 +61,7 @@ func updateWant(g *core.Gossiper, origin string) {
 // Get the gossiper current ID from its own Rumors. Useful when reconnecting
 // to the network after having already sent some Rumors
 func adjustMyCurrentID(g *core.Gossiper, status core.StatusPacket) {
+	g.RumorIDLock.Lock()
 	if g.CurrentRumorID == uint32(0) {
 		currentMaxIDFromRumors := uint32(0)
 		for _, st := range status.Want {
@@ -72,6 +73,7 @@ func adjustMyCurrentID(g *core.Gossiper, status core.StatusPacket) {
 			g.CurrentRumorID = currentMaxIDFromRumors - 1
 		}
 	}
+	g.RumorIDLock.Unlock()
 }
 
 // CreateSliceKnownPeers Create the slice of known peers necessary given a string containing

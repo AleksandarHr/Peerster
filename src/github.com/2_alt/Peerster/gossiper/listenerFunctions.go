@@ -218,14 +218,16 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 
 				// Solve the cases
 				if youWantMyRumors {
-					rumorToSend := core.RumorMessage{}
+					var rumorToSend *core.RumorMessage
 					if withFreshID {
 						rumorToSend = getRumor(gossiper, peerStatusTemp.Identifier, 1)
 					} else {
 						rumorToSend = getRumor(gossiper, peerStatusTemp.Identifier, peerStatusTemp.NextID)
 					}
-					helpers.PrintOutputMongering(fromAddr)
-					sendRumor(rumorToSend, gossiper, fromAddr)
+					if rumorToSend != nil {
+						helpers.PrintOutputMongering(fromAddr)
+						sendRumor(*rumorToSend, gossiper, fromAddr)
+					}
 				} else if iWantYourRumors {
 					sendStatus(gossiper, fromAddr)
 				} else {
@@ -299,12 +301,14 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 					// helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
 
 					// Add rumor to list of known rumors
+					gossiper.RumorIDLock.Lock()
 					gossiper.CurrentRumorID++
 					newRumor := core.RumorMessage{
 						Origin: gossiper.Name,
 						ID:     gossiper.CurrentRumorID,
 						Text:   message.Text,
 					}
+					gossiper.RumorIDLock.Unlock()
 					addRumorToKnownRumors(gossiper, newRumor)
 					updateWant(gossiper, gossiper.Name)
 
