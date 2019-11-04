@@ -38,8 +38,8 @@ func HandleFileIndexing(fname string) {
 		currChunkSize := int(math.Min(fixedChunkSize, float64(fSize-int64(i*fixedChunkSize))))
 		// fmt.Println("Chunk ", i, " has size of ", currChunkSize, " bytes")
 		buffer := make([]byte, currChunkSize)
-		file.Read(buffer)
-
+		bytesRead, _ := file.Read(buffer)
+		buffer = buffer[:bytesRead]
 		hash := computeSha256(buffer)
 		newName := hashToString(hash)
 		chunkPath, _ := filepath.Abs(sharedFilesFolder + newName)
@@ -61,6 +61,7 @@ func HandleFileIndexing(fname string) {
 
 	metahash := computeSha256(appendedMetaFile)
 	metahashString := hashToString(metahash)
+	// fmt.Println("Metahash is === ", metahashString)
 	metafilePath, _ := filepath.Abs(sharedFilesFolder + "/" + metahashString)
 	// fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
 	ioutil.WriteFile(metafilePath, appendedMetaFile, fileMode)

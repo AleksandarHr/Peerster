@@ -79,7 +79,8 @@ func PrintDownloadingMetafile(fname string, downloadFrom string) {
 
 // PrintDownloadingChunk print to console
 func PrintDownloadingChunk(fname string, downloadFrom string, idx uint32) {
-	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, idx, downloadFrom)
+	startFromOne := idx + 1
+	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, startFromOne, downloadFrom)
 }
 
 // PrintReconstructedFile print to console

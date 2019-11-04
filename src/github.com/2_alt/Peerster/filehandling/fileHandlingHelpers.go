@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -59,6 +60,7 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 	forwardingAddress := gossiper.DestinationTable[msg.Destination]
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
+		fmt.Println(" NO ADDRESS????????????????????????")
 		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
 	}
 
@@ -72,8 +74,8 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 }
 
 // a function to resend the latest requested chunk
-func resendDataRequest(gossiper *core.Gossiper, downloadFrom string) {
-	if state, ok := gossiper.DownloadingStates[downloadFrom]; ok {
+func resendDataRequest(gossiper *core.Gossiper, downloadFrom string, state *core.DownloadingState) {
+	if _, ok := gossiper.DownloadingStates[downloadFrom]; ok {
 		chunkToRerequest := state.LatestRequestedChunk
 		request := createDataRequest(gossiper.Name, downloadFrom, chunkToRerequest[:])
 		forwardDataRequest(gossiper, request)
@@ -106,21 +108,23 @@ func reconstructAndSaveFullyDownloadedFile(fileInfo *core.FileInformation) {
 	// 	fileData = append(fileData, chunk[:]...)
 	// }
 	// create and write to file
-	path, _ := filepath.Abs(sharedFilesFolder)
+	path, _ := filepath.Abs(downloadedFilesFolder)
 	filePath, _ := filepath.Abs(path + "/" + fileInfo.FileName)
 	ioutil.WriteFile(filePath, fileData[:], 0777)
 }
 
 func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
 	downloadFrom := clientMsg.Destination
+	hashValue := convertSliceTo32Fixed(*clientMsg.Request)
 	fileName := clientMsg.File
+
 	var requestedMetaHash [32]byte
 	copy(requestedMetaHash[:], (*clientMsg.Request)[:32])
 	fInfo := &core.FileInformation{FileName: *fileName, MetaHash: requestedMetaHash,
 		Metafile: make(map[uint32][32]byte, 0), ChunksMap: make(map[string][8192]byte, 0)}
 	state := core.DownloadingState{FileInfo: fInfo, DownloadFinished: false, MetafileDownloaded: false,
 		MetafileRequested: true, NextChunkIndex: uint32(0), ChunksToRequest: make([][]byte, 0),
-		DownloadingFrom: *downloadFrom, DownloadChanel: make(chan *core.DataReply)}
+		DownloadingFrom: *downloadFrom, DownloadChanel: make(chan *core.DataReply), LatestRequestedChunk: hashValue}
 	return &state
 }
 
@@ -222,9 +226,9 @@ func getChunkOrMetafileFromFileSystem(chunkHash [32]byte) []byte {
 	return nil
 }
 
-func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply) bool {
-	metafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile
-	lastChunkInMetafile := gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile[uint32(len(metafile)-1)]
+func wasLastFileChunk(gossiper *core.Gossiper, reply *core.DataReply, state *core.DownloadingState) bool {
+	metafile := state.FileInfo.Metafile
+	lastChunkInMetafile := state.FileInfo.Metafile[uint32(len(metafile)-1)]
 	return bytes.Compare(reply.HashValue, lastChunkInMetafile[:]) == 0
 }
 

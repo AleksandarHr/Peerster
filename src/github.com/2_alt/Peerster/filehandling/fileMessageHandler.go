@@ -1,6 +1,7 @@
 package filehandling
 
 import (
+	"bytes"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 // HandlePeerDataReply - a function to handle data reply from other peers
 func HandlePeerDataReply(gossiper *core.Gossiper, dataReply *core.DataReply) {
 	origin := dataReply.Origin
+	hashValue := dataReply.HashValue
 	// if dataReplay message has reached destination
 	if strings.Compare(dataReply.Destination, gossiper.Name) == 0 {
 		// packet is for this gossiper
@@ -23,7 +25,11 @@ func HandlePeerDataReply(gossiper *core.Gossiper, dataReply *core.DataReply) {
 			// in the process of downloading from them => Do nothing
 		} else {
 			// send to map of downloading states
-			gossiper.DownloadingStates[origin].DownloadChanel <- dataReply
+			for _, download := range gossiper.DownloadingStates[origin] {
+				if bytes.Compare(download.LatestRequestedChunk[:], hashValue) == 0 {
+					download.DownloadChanel <- dataReply
+				}
+			}
 		}
 		// unlock
 		gossiper.DownloadingLock.Unlock()
@@ -57,15 +63,14 @@ func HandleClientDownloadRequest(gossiper *core.Gossiper, clientMsg *core.Messag
 	fname := *clientMsg.File
 	downloadFrom := *clientMsg.Destination
 	requestedMetaHash := *clientMsg.Request
+	newState := createDownloadingState(clientMsg)
 	// We are initiating a new download with someone, asking for a metafile
 	gossiper.DownloadingLock.Lock()
 	if _, ok := gossiper.DownloadingStates[downloadFrom]; ok {
 		// Already downloading from this peer - what to do?
-	} else {
-		// otherwise, create a new chanel for downloading from this peer
-		newState := createDownloadingState(clientMsg)
-		gossiper.DownloadingStates[downloadFrom] = newState
+		gossiper.DownloadingStates[downloadFrom] = make([]*core.DownloadingState, 0)
 	}
+	gossiper.DownloadingStates[downloadFrom] = append(gossiper.DownloadingStates[downloadFrom], newState)
 	gossiper.DownloadingLock.Unlock()
 
 	// create a DataRequest message and send a gossip packet
@@ -74,10 +79,10 @@ func HandleClientDownloadRequest(gossiper *core.Gossiper, clientMsg *core.Messag
 	forwardDataRequest(gossiper, request)
 
 	// start a new downloading go routine
-	go initiateFileDownloading(gossiper, downloadFrom, fname)
+	go initiateFileDownloading(gossiper, downloadFrom, fname, newState)
 }
 
-func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname string) {
+func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname string, state *core.DownloadingState) {
 	// check if downloadFrom is present in the map (must be, we just created a chanel)
 	gossiper.DownloadingLock.Lock()
 	if _, ok := gossiper.DownloadingStates[downloadFrom]; !ok {
@@ -85,7 +90,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 		// return?
 		return
 	}
-	ch := gossiper.DownloadingStates[downloadFrom].DownloadChanel
+	ch := state.DownloadChanel
 	gossiper.DownloadingLock.Unlock()
 
 	// create a ticker
@@ -93,24 +98,23 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 
 	// in an infinite for-loop
 	for {
+		continueDownloading := true
 		// select statement
 		select {
 		// if ticker timeout
 		case <-ticker.C:
 			// resend data request
 			gossiper.DownloadingLock.Lock()
-			if state, ok := gossiper.DownloadingStates[downloadFrom]; ok {
-				nextIdx := state.NextChunkIndex
-				helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
-				resendDataRequest(gossiper, downloadFrom)
-			}
+			nextIdx := state.NextChunkIndex
+			helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
+			resendDataRequest(gossiper, downloadFrom, state)
 			gossiper.DownloadingLock.Unlock()
 		case reply := <-ch:
 			if reply != nil {
 				// if a dataReply comes from the chanel
 				// sanity check - make sure it is a reply to my last request
 				gossiper.DownloadingLock.Lock()
-				lastChunk := gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk[:]
+				lastChunk := state.LatestRequestedChunk[:]
 				gossiper.DownloadingLock.Unlock()
 				if !replyWasExpected(lastChunk, reply) {
 					// received data reply for a chunk that was not requested; do nothing
@@ -118,67 +122,82 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 				if !replyIntegrityCheck(reply) {
 					// received data reply with mismatching hash and data; resend request
 					gossiper.DownloadingLock.Lock()
-					nextIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
+					nextIdx := state.NextChunkIndex
 					gossiper.DownloadingLock.Unlock()
 					helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
-					resendDataRequest(gossiper, downloadFrom)
+					resendDataRequest(gossiper, downloadFrom, state)
 				} else {
 					gossiper.DownloadingLock.Lock()
-					mfReqeusted := gossiper.DownloadingStates[downloadFrom].MetafileRequested
-					mfDownloaded := gossiper.DownloadingStates[downloadFrom].MetafileDownloaded
+					mfReqeusted := state.MetafileRequested
+					mfDownloaded := state.MetafileDownloaded
 					gossiper.DownloadingLock.Unlock()
 					if mfReqeusted && !mfDownloaded {
 						// the datareply SHOULD contain the metafile then
-						handleReceivedMetafile(gossiper, reply, fname)
+						handleReceivedMetafile(gossiper, reply, fname, state)
 					} else {
 						// the datareply SHOULD be containing a file data chunk
 						// update FileInfo struct
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
-						chunkData := convertSliceTo8192Fixed(reply.Data)
+						chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
 						gossiper.DownloadingLock.Lock()
-						gossiper.DownloadingStates[downloadFrom].FileInfo.ChunksMap[chunkHashString] = chunkData
-						gossiper.DownloadingStates[downloadFrom].NextChunkIndex++
+						state.FileInfo.ChunksMap[chunkHashString] = chunkData
+						state.NextChunkIndex++
 						gossiper.DownloadingLock.Unlock()
 
 						// save chunk to a new file
 						chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
 						ioutil.WriteFile(chunkPath, chunkData[:], 0755)
+						// if that was the last chunk to be downloaded close the chanel and save the full file
+						if wasLastFileChunk(gossiper, reply, state) {
+							helpers.PrintReconstructedFile(fname)
+							gossiper.DownloadingLock.Lock()
+							state.DownloadFinished = true
+							continueDownloading = false
+							reconstructAndSaveFullyDownloadedFile(state.FileInfo)
+							// removeState(gossiper.DownloadingStates[downloadFrom])
+							// delete(gossiper.DownloadingStates, downloadFrom)
+							gossiper.DownloadingLock.Unlock()
+						}
 					}
 
-					// if that was the last chunk to be downloaded close the chanel and save the full file
-					if wasLastFileChunk(gossiper, reply) {
-						helpers.PrintReconstructedFile(fname)
-						gossiper.DownloadingLock.Lock()
-						gossiper.DownloadingStates[downloadFrom].DownloadFinished = true
-						close(gossiper.DownloadingStates[downloadFrom].DownloadChanel)
-						reconstructAndSaveFullyDownloadedFile(gossiper.DownloadingStates[downloadFrom].FileInfo)
-						delete(gossiper.DownloadingStates, downloadFrom)
-						gossiper.DownloadingLock.Unlock()
-					} else {
+					if continueDownloading {
 						// if not, get next chunk request, (update ticker) and send it
 						ticker = time.NewTicker(5 * time.Second)
 						gossiper.DownloadingLock.Lock()
-						nextChunkIdx := gossiper.DownloadingStates[downloadFrom].NextChunkIndex
-						nextHashToRequest, _ := gossiper.DownloadingStates[downloadFrom].FileInfo.Metafile[nextChunkIdx]
-						gossiper.DownloadingStates[downloadFrom].LatestRequestedChunk = nextHashToRequest
+						nextChunkIdx := state.NextChunkIndex
+						nextHashToRequest, _ := state.FileInfo.Metafile[nextChunkIdx]
+						state.LatestRequestedChunk = nextHashToRequest
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
-						helpers.PrintDownloadingChunk(fname, downloadFrom, gossiper.DownloadingStates[downloadFrom].NextChunkIndex)
+						helpers.PrintDownloadingChunk(fname, downloadFrom, state.NextChunkIndex)
 						gossiper.DownloadingLock.Unlock()
 						forwardDataRequest(gossiper, request)
 					}
 				}
 			}
 		}
+		if !continueDownloading {
+			break
+		}
 	}
 }
 
-func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fname string) {
+func removeState(states []*core.DownloadingState) {
+	for i, st := range states {
+		if st.DownloadFinished {
+			close(states[i].DownloadChanel)
+			states[i] = states[len(states)-1]
+			states = states[:len(states)-1]
+		}
+	}
+}
+
+func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fname string, state *core.DownloadingState) {
 	// read the metafile and populate hashedChunks in the file
 	metafile := mapifyMetafile(reply.Data)
 	gossiper.DownloadingLock.Lock()
-	gossiper.DownloadingStates[reply.Origin].FileInfo.Metafile = metafile
-	gossiper.DownloadingStates[reply.Origin].MetafileDownloaded = true
+	state.FileInfo.Metafile = metafile
+	state.MetafileDownloaded = true
 	gossiper.DownloadingLock.Unlock()
 
 	// write metafile to file system
