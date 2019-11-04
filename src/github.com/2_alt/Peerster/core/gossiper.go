@@ -28,6 +28,12 @@ type DownloadingState struct {
 	StateLock            sync.Mutex
 }
 
+// SafeDestinationTable - a struct for the DSDV with a lock
+type SafeDestinationTable struct {
+	Dsdv     map[string]string
+	DsdvLock sync.Mutex
+}
+
 // Gossiper Struct of a gossiper
 type Gossiper struct {
 	Address           *net.UDPAddr
@@ -39,9 +45,10 @@ type Gossiper struct {
 	LocalAddr         *net.UDPAddr
 	LocalConn         *net.UDPConn
 	CurrentRumorID    uint32
+	RumorIDLock       sync.Mutex
 	MongeringStatus   []*MongeringStatus
 	uiPort            string
-	DestinationTable  map[string]string
+	DestinationTable  *SafeDestinationTable
 	DownloadingStates map[string][]*DownloadingState
 	DownloadingLock   sync.Mutex
 }
@@ -58,6 +65,7 @@ func NewGossiper(address string, name string,
 	helpers.HandleErrorFatal(err)
 	udpConnLocal, err := net.ListenUDP("udp4", udpAddrLocal)
 	helpers.HandleErrorFatal(err)
+	dsdv := &SafeDestinationTable{Dsdv: make(map[string]string)}
 
 	return &Gossiper{
 		Address:           udpAddr,
@@ -71,7 +79,7 @@ func NewGossiper(address string, name string,
 		CurrentRumorID:    uint32(0),
 		MongeringStatus:   make([]*MongeringStatus, 0),
 		uiPort:            UIPort,
-		DestinationTable:  make(map[string]string),
+		DestinationTable:  dsdv,
 		DownloadingStates: make(map[string][]*DownloadingState),
 	}
 }

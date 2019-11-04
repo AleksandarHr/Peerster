@@ -44,7 +44,9 @@ func forwardPrivateMessage(gossiperPtr *core.Gossiper, msg *core.PrivateMessage)
 		return
 	}
 
-	forwardingAddress := gossiperPtr.DestinationTable[msg.Destination]
+	gossiperPtr.DestinationTable.DsdvLock.Lock()
+	forwardingAddress := gossiperPtr.DestinationTable.Dsdv[msg.Destination]
+	gossiperPtr.DestinationTable.DsdvLock.Unlock()
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
 		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet

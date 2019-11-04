@@ -38,10 +38,10 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 		if gossipPacket.Simple != nil {
 			// Print simple output
 			simpleMessage := *gossipPacket.Simple
-			helpers.PrintOutputSimpleMessageFromPeer(simpleMessage.Contents,
-				simpleMessage.OriginalName,
-				simpleMessage.RelayPeerAddr,
-				gossiper.KnownPeers)
+			// helpers.PrintOutputSimpleMessageFromPeer(simpleMessage.Contents,
+			// 	simpleMessage.OriginalName,
+			// 	simpleMessage.RelayPeerAddr,
+			// 	gossiper.KnownPeers)
 
 			if simpleMode {
 				// Prepare the message to be sent (SIMPLE MODE)
@@ -104,8 +104,10 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				}
 
 				// Update destiantionTable
+				gossiper.DestinationTable.DsdvLock.Lock()
 				core.UpdateDestinationTable(gossiper.Name, gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
-					gossiper.DestinationTable, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
+					gossiper.DestinationTable.Dsdv, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
+				gossiper.DestinationTable.DsdvLock.Unlock()
 
 				// Send status
 				sendStatus(gossiper, fromAddr)
@@ -123,7 +125,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				addRumorToKnownRumors(gossiper, *gossipPacket.Rumor)
 			} else if gossipPacket.Status != nil {
 				// Print STATUS message
-				core.PrintOutputStatus(fromAddr, gossipPacket.Status.Want, gossiper.KnownPeers)
+				// core.PrintOutputStatus(fromAddr, gossipPacket.Status.Want, gossiper.KnownPeers)
 
 				// Check own rumorID to avoid crashes after reconnection (TODO)
 				adjustMyCurrentID(gossiper, *gossipPacket.Status)
@@ -230,7 +232,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 					// Case: each peer is up-to-date and the gossiper
 					// decide to continue rumormongering or not
 					// Print IN SYNC WITH message
-					helpers.PrintOutputInSyncWith(fromAddr)
+					// helpers.PrintOutputInSyncWith(fromAddr)
 					// Continue mongering test
 					if len(rumorsToFlipCoinFor) > 0 {
 						for _, rToFlip := range rumorsToFlipCoinFor {
@@ -243,7 +245,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 								if strings.Compare(chosenAddr, "") != 0 {
 									// Print FLIPPED COIN message and send rumor
 									sendRumor(rToFlip, gossiper, chosenAddr)
-									helpers.PrintOutputFlippedCoin(chosenAddr)
+									// helpers.PrintOutputFlippedCoin(chosenAddr)
 								}
 							}
 						}
@@ -261,7 +263,7 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 
 		if simpleMode {
 			// Print simple output
-			helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
+			// helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
 
 			// Prepare the message to be sent (SIMPLE MODE)
 			simpleMessageToSend := core.SimpleMessage{
@@ -294,7 +296,7 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 					handlePrivateMessage(gossiper, privateMsg)
 				} else {
 					// Print output
-					helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
+					// helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
 
 					// Add rumor to list of known rumors
 					gossiper.CurrentRumorID++

@@ -35,7 +35,7 @@ func generateAndSendRouteRumor(gossiperPtr *core.Gossiper, rumorOrigin string, r
 func routeRumorHandler(gossiperPtr *core.Gossiper, routeRumorPtr *int) {
 	if *routeRumorPtr > 0 {
 		// if the route rumor timer is 0, disable sending route rumors completely
-		generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, 1)
+		generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, gossiperPtr.CurrentRumorID)
 		for {
 			time.Sleep(time.Duration(*routeRumorPtr) * time.Second)
 			generateAndSendRouteRumor(gossiperPtr, gossiperPtr.Name, gossiperPtr.CurrentRumorID)

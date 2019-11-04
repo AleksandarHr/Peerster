@@ -33,8 +33,9 @@ func forwardDataRequest(gossiper *core.Gossiper, msg *core.DataRequest) {
 		// if we have reached the HopLimit, drop the message
 		return
 	}
-
-	forwardingAddress := gossiper.DestinationTable[msg.Destination]
+	gossiper.DestinationTable.DsdvLock.Lock()
+	forwardingAddress := gossiper.DestinationTable.Dsdv[msg.Destination]
+	gossiper.DestinationTable.DsdvLock.Unlock()
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
 		// fmt.Println("NO FORWARDING ADDRESS AGAIN :??")
@@ -56,8 +57,9 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 		// if we have reached the HopLimit, drop the message
 		return
 	}
-
-	forwardingAddress := gossiper.DestinationTable[msg.Destination]
+	gossiper.DestinationTable.DsdvLock.Lock()
+	forwardingAddress := gossiper.DestinationTable.Dsdv[msg.Destination]
+	gossiper.DestinationTable.DsdvLock.Unlock()
 	// If current node has no information about next hop to the destination in question
 	if strings.Compare(forwardingAddress, "") == 0 {
 		fmt.Println(" NO ADDRESS????????????????????????")
