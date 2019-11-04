@@ -25,6 +25,7 @@ type DownloadingState struct {
 	ChunksToRequest      [][]byte
 	DownloadingFrom      string
 	DownloadChanel       chan *DataReply
+	StateLock            sync.Mutex
 }
 
 // Gossiper Struct of a gossiper

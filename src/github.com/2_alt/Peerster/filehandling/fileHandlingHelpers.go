@@ -121,7 +121,7 @@ func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
 	var requestedMetaHash [32]byte
 	copy(requestedMetaHash[:], (*clientMsg.Request)[:32])
 	fInfo := &core.FileInformation{FileName: *fileName, MetaHash: requestedMetaHash,
-		Metafile: make(map[uint32][32]byte, 0), ChunksMap: make(map[string][8192]byte, 0)}
+		Metafile: make(map[uint32][32]byte, 0), ChunksMap: make(map[string][]byte, 0)}
 	state := core.DownloadingState{FileInfo: fInfo, DownloadFinished: false, MetafileDownloaded: false,
 		MetafileRequested: true, NextChunkIndex: uint32(0), ChunksToRequest: make([][]byte, 0),
 		DownloadingFrom: *downloadFrom, DownloadChanel: make(chan *core.DataReply), LatestRequestedChunk: hashValue}
@@ -129,7 +129,7 @@ func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
 }
 
 func createFileInformation(name string, numBytes uint32, metafile map[uint32][32]byte,
-	dataChunks map[string][8192]byte) *core.FileInformation {
+	dataChunks map[string][]byte) *core.FileInformation {
 	fileInfo := core.FileInformation{FileName: name}
 	// fileInfo.Metafile = concatenateMetafile(hashedChunks)
 	fileInfo.Metafile = metafile

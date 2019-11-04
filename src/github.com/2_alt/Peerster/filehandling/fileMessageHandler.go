@@ -95,7 +95,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 
 	// create a ticker
 	ticker := time.NewTicker(5 * time.Second)
-
+	state.StateLock.Lock()
 	// in an infinite for-loop
 	for {
 		continueDownloading := true
@@ -104,33 +104,26 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 		// if ticker timeout
 		case <-ticker.C:
 			// resend data request
-			gossiper.DownloadingLock.Lock()
 			nextIdx := state.NextChunkIndex
 			helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
+
 			resendDataRequest(gossiper, downloadFrom, state)
-			gossiper.DownloadingLock.Unlock()
 		case reply := <-ch:
 			if reply != nil {
 				// if a dataReply comes from the chanel
 				// sanity check - make sure it is a reply to my last request
-				gossiper.DownloadingLock.Lock()
 				lastChunk := state.LatestRequestedChunk[:]
-				gossiper.DownloadingLock.Unlock()
 				if !replyWasExpected(lastChunk, reply) {
 					// received data reply for a chunk that was not requested; do nothing
 				}
 				if !replyIntegrityCheck(reply) {
 					// received data reply with mismatching hash and data; resend request
-					gossiper.DownloadingLock.Lock()
 					nextIdx := state.NextChunkIndex
-					gossiper.DownloadingLock.Unlock()
 					helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
 					resendDataRequest(gossiper, downloadFrom, state)
 				} else {
-					gossiper.DownloadingLock.Lock()
 					mfReqeusted := state.MetafileRequested
 					mfDownloaded := state.MetafileDownloaded
-					gossiper.DownloadingLock.Unlock()
 					if mfReqeusted && !mfDownloaded {
 						// the datareply SHOULD contain the metafile then
 						handleReceivedMetafile(gossiper, reply, fname, state)
@@ -139,55 +132,42 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 						// update FileInfo struct
 						chunkHash := convertSliceTo32Fixed(reply.HashValue)
 						chunkHashString := hashToString(chunkHash)
-						chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
+						// chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
 						gossiper.DownloadingLock.Lock()
-						state.FileInfo.ChunksMap[chunkHashString] = chunkData
+						state.FileInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
 						state.NextChunkIndex++
 						gossiper.DownloadingLock.Unlock()
 
 						// save chunk to a new file
 						chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
-						ioutil.WriteFile(chunkPath, chunkData[:], 0755)
+						ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], 0755)
 						// if that was the last chunk to be downloaded close the chanel and save the full file
 						if wasLastFileChunk(gossiper, reply, state) {
 							helpers.PrintReconstructedFile(fname)
-							gossiper.DownloadingLock.Lock()
 							state.DownloadFinished = true
 							continueDownloading = false
 							reconstructAndSaveFullyDownloadedFile(state.FileInfo)
 							// removeState(gossiper.DownloadingStates[downloadFrom])
 							// delete(gossiper.DownloadingStates, downloadFrom)
-							gossiper.DownloadingLock.Unlock()
 						}
 					}
 
 					if continueDownloading {
 						// if not, get next chunk request, (update ticker) and send it
 						ticker = time.NewTicker(5 * time.Second)
-						gossiper.DownloadingLock.Lock()
 						nextChunkIdx := state.NextChunkIndex
 						nextHashToRequest, _ := state.FileInfo.Metafile[nextChunkIdx]
 						state.LatestRequestedChunk = nextHashToRequest
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
 						helpers.PrintDownloadingChunk(fname, downloadFrom, state.NextChunkIndex)
-						gossiper.DownloadingLock.Unlock()
 						forwardDataRequest(gossiper, request)
 					}
 				}
 			}
 		}
 		if !continueDownloading {
+			state.StateLock.Unlock()
 			break
-		}
-	}
-}
-
-func removeState(states []*core.DownloadingState) {
-	for i, st := range states {
-		if st.DownloadFinished {
-			close(states[i].DownloadChanel)
-			states[i] = states[len(states)-1]
-			states = states[:len(states)-1]
 		}
 	}
 }

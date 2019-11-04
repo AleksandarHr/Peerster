@@ -12,7 +12,7 @@ type FileInformation struct {
 	NumberOfBytes uint32
 	MetaHash      [32]byte
 	Metafile      map[uint32][32]byte
-	ChunksMap     map[string][8192]byte
+	ChunksMap     map[string][]byte
 }
 
 // SimpleMessage simple message for part 1

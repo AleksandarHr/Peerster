@@ -27,7 +27,7 @@ func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *
 
 	// Send the initial route rumor message on startup
 	go routeRumorHandler(gossiperPtr, routeRumorPtr)
-
+	// go removeCompletedStates(gossiperPtr)
 	// Anti-entropy
 	if *antiEntropyPtr > 0 {
 		for {
@@ -42,5 +42,27 @@ func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *
 		for {
 			time.Sleep(time.Duration(*antiEntropyPtr) * 999)
 		}
+	}
+}
+
+func removeCompletedStates(gossiper *core.Gossiper) {
+	for {
+		time.Sleep(5 * time.Second)
+		gossiper.DownloadingLock.Lock()
+		allStates := gossiper.DownloadingStates
+		for downloadFrom, states := range allStates {
+			for i, st := range states {
+				if st.DownloadFinished {
+					close(states[i].DownloadChanel)
+					if len(states) == 1 {
+						delete(gossiper.DownloadingStates, downloadFrom)
+					} else {
+						states[i] = states[len(states)-1]
+						states = states[:len(states)-1]
+					}
+				}
+			}
+		}
+		gossiper.DownloadingLock.Unlock()
 	}
 }
