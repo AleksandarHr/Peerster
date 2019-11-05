@@ -8,8 +8,10 @@
         <script>
             function keepScrollBottom() {
                 var divPeer = document.getElementById("peer_list_id")
+                var divOrigins = document.getElementById("origins_id")
                 var divChat = document.getElementById("chat_id")
                 divPeer.scrollTop = divPeer.scrollHeight;
+                divOrigins.scrollTop = divOrigins.scrollHeight;
                 divChat.scrollTop = divChat.scrollHeight;
             }
 
@@ -50,6 +52,24 @@
                 });
             }
 
+            function clickSendPrivateButton() {
+              $("#send_private_button_id").click(function() {
+                  var privateMessage = document.getElementById("send_private_message_id").value;
+                  if (privateMessage != "") {
+                      // Send to server and refresh list
+                      $.ajax({
+                          url: "/private",
+                          type: "POST",
+                          contentType: "application/json",
+                          data: JSON.stringify(privateMessage),
+                          dataType: "json",
+                      });
+                      refreshPrivateMessages(true);
+                  }
+                  keepScrollBottom();
+              });
+            }
+
             function getID() {
                 $.getJSON("/id", function(data) {
                     $("#ownID_id").text(data)
@@ -70,6 +90,20 @@
                 });
             }
 
+            function refreshOrigins(keepScrollDown) {
+                $.getJSON("/origin", function(data) {
+                    data = data + "";
+                    var itemArray = data.split(",");
+                    $("#origins_id").html("");
+                    for (var i = 0; i < itemArray.length; i++) {
+                      $("#origins_id").append("<button class='link'>" + itemArray[i] + "</button>" + "<br>");
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
             function refreshRumors(keepScrollDown) {
                 $.getJSON("/message", function(data) {
                     var json
@@ -79,6 +113,22 @@
                             return data[i][key];
                         });
                         $("#chat_id").append(values[0] + " : " + values[2] + "<br>")
+                      }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refreshPrivateMessages(keepScrollDown) {
+                $.getJSON("/private", function(data) {
+                    var json
+                    $("#private_id").html("");
+                    for (i = 0; i < data.length; i++) {
+                        var values = Object.keys(data[i]).map(function(key) {
+                            return data[i][key];
+                        });
+                        $("#private_id").append(values[0] + " : " + values[2] + "<br>")
                     }
                     if (keepScrollDown) {
                         keepScrollBottom();
@@ -86,11 +136,14 @@
                 });
             }
 
+
             function refresh() {
                 // Nodes
                 refreshNodes(false);
                 // Rumors
                 refreshRumors(false);
+                // Origins
+                refreshOrigins(false);
             }
 
             // Refresh chat and nodes from server
@@ -105,7 +158,7 @@
 
             <!--Own ID-->
             <tr>
-                <td colspan="2" bgcolor="#0c4f0e">
+                <td colspan="4" bgcolor="#0c4f0e">
                     <h1 id="ownID_id" align="center" style="color: white">
                         ID: ??
                     </h1>
@@ -130,9 +183,31 @@
                 </td>
 
                 <!--Chat-->
-                <td bgcolor="#eee" height="250">
+                <td bgcolor="#eee" width="600" height="250">
                     <table>
                         <div id="chat_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+
+                <!--Known Origins-->
+                <td bgcolor="#eee" width="250" height="250">
+                    <table>
+                        <div id="origins_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+
+                <!--Private Messages-->
+                <td bgcolor="#eee" height="250">
+                    <table>
+                        <div id="private_id" style="height:250px;
                         border:1px solid #ccc;
                         font:16px/26px Georgia, Garamond, Serif;
                         overflow:auto;">
@@ -166,6 +241,19 @@
                     <!--Send rumor to server and refresh chat-->
                     <script>
                         clickSendButton();
+                    </script>
+                </td>
+
+                <td col>
+                    <form name="sendPrivateMessageForm">
+                        Write your private message: <input id="send_private_message_id"
+                             type="text" name="private_message" onclick="this.form.reset()">
+                    </form>
+                    <button id="send_private_button_id">Send</button>
+
+                    <!--Send rumor to server and refresh chat-->
+                    <script>
+                        clickSendPrivateButton();
                     </script>
                 </td>
             </tr>

@@ -1,10 +1,13 @@
 package core
 
-import "github.com/2_alt/Peerster/helpers"
+import (
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
-import "fmt"
-import "strconv"
-import "strings"
+	"github.com/2_alt/Peerster/helpers"
+)
 
 //===============================================
 //===============================================
@@ -27,9 +30,34 @@ func (g *Gossiper) GetAllRumors() []RumorMessage {
 	return g.KnownRumors
 }
 
+// GetAllNonRouteRumors Get the rumors known by the gossiper
+func (g *Gossiper) GetAllNonRouteRumors() []RumorMessage {
+	allRumors := g.KnownRumors
+	regularRumors := make([]RumorMessage, 0)
+	for _, r := range allRumors {
+		if strings.Compare(r.Text, "") != 0 {
+			regularRumors = append(regularRumors, r)
+		}
+	}
+	return regularRumors
+}
+
 // GetAllKnownPeers Get the known peers of this gossiper
 func (g *Gossiper) GetAllKnownPeers() []string {
 	return g.KnownPeers
+}
+
+// GetAllKnownOrigins - returns the origins known to this gossiper
+func (g *Gossiper) GetAllKnownOrigins() []string {
+	origins := make([]string, 0)
+	g.DestinationTable.DsdvLock.Lock()
+	for o := range g.DestinationTable.Dsdv {
+		origins = append(origins, o)
+	}
+	g.DestinationTable.DsdvLock.Unlock()
+
+	sort.Strings(origins)
+	return origins
 }
 
 // AddPeer Add a peer to the list of known peers
