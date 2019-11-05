@@ -30,10 +30,13 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 		}
 
 		// Store address from the sender
-		if !helpers.SliceContainsString(gossiper.KnownPeers, fromAddr) &&
+		gossiper.PeersLock.Lock()
+		knownPeers := gossiper.KnownPeers
+		if !helpers.SliceContainsString(knownPeers, fromAddr) &&
 			strings.Compare(fromAddr, "") != 0 {
-			gossiper.KnownPeers = append(gossiper.KnownPeers, fromAddr)
+			gossiper.KnownPeers = append(knownPeers, fromAddr)
 		}
+		gossiper.PeersLock.Unlock()
 
 		if gossipPacket.Simple != nil {
 			// Print simple output
@@ -51,7 +54,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				helpers.HandleErrorFatal(err)
 
 				// Send message to all other known peers
-				for _, knownAddress := range gossiper.KnownPeers {
+				for _, knownAddress := range knownPeers {
 					if strings.Compare(knownAddress, fromAddr) != 0 {
 						core.ConnectAndSend(knownAddress, gossiper.Conn, packetBytes)
 					}
@@ -60,6 +63,9 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 		}
 
 		if !simpleMode {
+			gossiper.PeersLock.Lock()
+			knownPeers := gossiper.KnownPeers
+			gossiper.PeersLock.Unlock()
 			if gossipPacket.DataRequest != nil {
 				// Handle incoming data requests messages from other peers
 				filehandling.HandlePeerDataRequest(gossiper, gossipPacket.DataRequest)
@@ -72,7 +78,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 			}
 			if gossipPacket.Rumor != nil {
 				// Print RumorFromPeer output
-				helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor.Origin, fromAddr, gossipPacket.Rumor.ID, gossipPacket.Rumor.Text, gossiper.KnownPeers)
+				helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor.Origin, fromAddr, gossipPacket.Rumor.ID, gossipPacket.Rumor.Text, knownPeers)
 
 				// Check if the Rumor or its Origin is known
 				rumorIsKnown, originIsKnown, wantedID := core.IsRumorKnown(gossiper.Want, gossipPacket.Rumor)
@@ -113,9 +119,9 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				sendStatus(gossiper, fromAddr)
 
 				if !rumorIsKnown {
-					if len(gossiper.KnownPeers) > 0 {
+					if len(knownPeers) > 0 {
 						// Pick a random address and send the rumor
-						chosenAddr := helpers.PickRandomInSlice(gossiper.KnownPeers)
+						chosenAddr := helpers.PickRandomInSlice(knownPeers)
 						sendRumor(*gossipPacket.Rumor, gossiper, chosenAddr)
 						helpers.PrintOutputMongering(chosenAddr)
 					}
@@ -243,7 +249,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 							flipCoinResult := rng.Intn(2)
 							if flipCoinResult == 0 {
 								// Pick a random address and send the rumor
-								chosenAddr := helpers.PickRandomInSliceDifferentFrom(gossiper.KnownPeers, fromAddr)
+								chosenAddr := helpers.PickRandomInSliceDifferentFrom(knownPeers, fromAddr)
 								if strings.Compare(chosenAddr, "") != 0 {
 									// Print FLIPPED COIN message and send rumor
 									sendRumor(rToFlip, gossiper, chosenAddr)
@@ -260,6 +266,9 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 
 func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 	for {
+		gossiper.PeersLock.Lock()
+		knownPeers := gossiper.KnownPeers
+		gossiper.PeersLock.Unlock()
 		// Receive and decode messages
 		message, _ := receiveAndDecodeFromClient(gossiper)
 
@@ -278,7 +287,7 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 			helpers.HandleErrorFatal(err)
 
 			// Send message to all known peers
-			for _, knownAddress := range gossiper.KnownPeers {
+			for _, knownAddress := range knownPeers {
 				core.ConnectAndSend(knownAddress, gossiper.Conn, packetBytes)
 			}
 		}
@@ -314,8 +323,8 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 
 					// Pick a random address and send the rumor
 					chosenAddr := ""
-					if len(gossiper.KnownPeers) > 0 {
-						chosenAddr = helpers.PickRandomInSlice(gossiper.KnownPeers)
+					if len(knownPeers) > 0 {
+						chosenAddr = helpers.PickRandomInSlice(knownPeers)
 						sendRumor(newRumor, gossiper, chosenAddr)
 						helpers.PrintOutputMongering(chosenAddr)
 					}

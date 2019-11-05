@@ -29,14 +29,18 @@ func generateAndSendRouteRumor(gossiperPtr *core.Gossiper, toAll bool) {
 	packetBytes, err := protobuf.Encode(&packetToSend)
 	helpers.HandleErrorFatal(err)
 
+	gossiperPtr.PeersLock.Lock()
+	knownPeers := gossiperPtr.KnownPeers
+	gossiperPtr.PeersLock.Unlock()
+
 	if toAll {
-		for _, peer := range gossiperPtr.KnownPeers {
+		for _, peer := range knownPeers {
 			core.ConnectAndSend(peer, gossiperPtr.Conn, packetBytes)
 		}
 	} else {
 		chosenAddr := ""
-		if len(gossiperPtr.KnownPeers) > 0 {
-			chosenAddr = helpers.PickRandomInSlice(gossiperPtr.KnownPeers)
+		if len(knownPeers) > 0 {
+			chosenAddr = helpers.PickRandomInSlice(knownPeers)
 		}
 
 		if strings.Compare(chosenAddr, "") != 0 {

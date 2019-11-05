@@ -111,56 +111,61 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 		case reply := <-ch:
 			if reply != nil {
 				// if a dataReply comes from the chanel
-				// sanity check - make sure it is a reply to my last request
-				lastChunk := state.LatestRequestedChunk[:]
-				if !replyWasExpected(lastChunk, reply) {
-					// received data reply for a chunk that was not requested; do nothing
-				}
-				if !replyIntegrityCheck(reply) {
-					// received data reply with mismatching hash and data; resend request
-					nextIdx := state.NextChunkIndex
-					helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
-					resendDataRequest(gossiper, downloadFrom, state)
+				if len(reply.Data) == 0 {
+					// if the Data field of the reply was empty, stop downloading
+					continueDownloading = false
 				} else {
-					mfReqeusted := state.MetafileRequested
-					mfDownloaded := state.MetafileDownloaded
-					if mfReqeusted && !mfDownloaded {
-						// the datareply SHOULD contain the metafile then
-						handleReceivedMetafile(gossiper, reply, fname, state)
-					} else {
-						// the datareply SHOULD be containing a file data chunk
-						// update FileInfo struct
-						chunkHash := convertSliceTo32Fixed(reply.HashValue)
-						chunkHashString := hashToString(chunkHash)
-						// chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
-						gossiper.DownloadingLock.Lock()
-						state.FileInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
-						state.NextChunkIndex++
-						gossiper.DownloadingLock.Unlock()
-
-						// save chunk to a new file
-						chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
-						ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], 0755)
-						// if that was the last chunk to be downloaded close the chanel and save the full file
-						if wasLastFileChunk(gossiper, reply, state) {
-							helpers.PrintReconstructedFile(fname)
-							state.DownloadFinished = true
-							continueDownloading = false
-							reconstructAndSaveFullyDownloadedFile(state.FileInfo)
-							// removeState(gossiper.DownloadingStates[downloadFrom])
-							// delete(gossiper.DownloadingStates, downloadFrom)
-						}
+					// sanity check - make sure it is a reply to my last request
+					lastChunk := state.LatestRequestedChunk[:]
+					if !replyWasExpected(lastChunk, reply) {
+						// received data reply for a chunk that was not requested; do nothing
 					}
+					if !replyIntegrityCheck(reply) {
+						// received data reply with mismatching hash and data; resend request
+						nextIdx := state.NextChunkIndex
+						helpers.PrintDownloadingChunk(fname, downloadFrom, nextIdx)
+						resendDataRequest(gossiper, downloadFrom, state)
+					} else {
+						mfReqeusted := state.MetafileRequested
+						mfDownloaded := state.MetafileDownloaded
+						if mfReqeusted && !mfDownloaded {
+							// the datareply SHOULD contain the metafile then
+							handleReceivedMetafile(gossiper, reply, fname, state)
+						} else {
+							// the datareply SHOULD be containing a file data chunk
+							// update FileInfo struct
+							chunkHash := convertSliceTo32Fixed(reply.HashValue)
+							chunkHashString := hashToString(chunkHash)
+							// chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
+							gossiper.DownloadingLock.Lock()
+							state.FileInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
+							state.NextChunkIndex++
+							gossiper.DownloadingLock.Unlock()
 
-					if continueDownloading {
-						// if not, get next chunk request, (update ticker) and send it
-						ticker = time.NewTicker(5 * time.Second)
-						nextChunkIdx := state.NextChunkIndex
-						nextHashToRequest, _ := state.FileInfo.Metafile[nextChunkIdx]
-						state.LatestRequestedChunk = nextHashToRequest
-						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
-						helpers.PrintDownloadingChunk(fname, downloadFrom, state.NextChunkIndex)
-						forwardDataRequest(gossiper, request)
+							// save chunk to a new file
+							chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
+							ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], 0755)
+							// if that was the last chunk to be downloaded close the chanel and save the full file
+							if wasLastFileChunk(gossiper, reply, state) {
+								helpers.PrintReconstructedFile(fname)
+								state.DownloadFinished = true
+								continueDownloading = false
+								reconstructAndSaveFullyDownloadedFile(state.FileInfo)
+								// removeState(gossiper.DownloadingStates[downloadFrom])
+								// delete(gossiper.DownloadingStates, downloadFrom)
+							}
+						}
+
+						if continueDownloading {
+							// if not, get next chunk request, (update ticker) and send it
+							ticker = time.NewTicker(5 * time.Second)
+							nextChunkIdx := state.NextChunkIndex
+							nextHashToRequest, _ := state.FileInfo.Metafile[nextChunkIdx]
+							state.LatestRequestedChunk = nextHashToRequest
+							request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
+							helpers.PrintDownloadingChunk(fname, downloadFrom, state.NextChunkIndex)
+							forwardDataRequest(gossiper, request)
+						}
 					}
 				}
 			}

@@ -40,6 +40,7 @@ type Gossiper struct {
 	Conn              *net.UDPConn
 	Name              string
 	KnownPeers        []string
+	PeersLock         sync.Mutex
 	KnownRumors       []RumorMessage
 	Want              []PeerStatus
 	LocalAddr         *net.UDPAddr
