@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/2_alt/Peerster/constants"
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 )
@@ -136,15 +137,14 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 							// update FileInfo struct
 							chunkHash := convertSliceTo32Fixed(reply.HashValue)
 							chunkHashString := hashToString(chunkHash)
-							// chunkData := convertSliceTo8192Fixed(reply.Data[:len(reply.Data)])
 							gossiper.DownloadingLock.Lock()
 							state.FileInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
 							state.NextChunkIndex++
 							gossiper.DownloadingLock.Unlock()
 
 							// save chunk to a new file
-							chunkPath, _ := filepath.Abs(downloadedFilesChunksFolder + "/" + chunkHashString)
-							ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], 0755)
+							chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
+							ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], constants.FileMode)
 							// if that was the last chunk to be downloaded close the chanel and save the full file
 							if wasLastFileChunk(gossiper, reply, state) {
 								helpers.PrintReconstructedFile(fname)
@@ -186,6 +186,6 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fnam
 	gossiper.DownloadingLock.Unlock()
 
 	// write metafile to file system
-	metafilePath := buildChunkPath(downloadedFilesChunksFolder, reply.HashValue)
-	ioutil.WriteFile(metafilePath, reply.Data, 0755)
+	metafilePath := buildChunkPath(constants.DownloadedFilesChunksFolder, reply.HashValue)
+	ioutil.WriteFile(metafilePath, reply.Data, constants.FileMode)
 }

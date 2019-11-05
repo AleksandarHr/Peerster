@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/2_alt/Peerster/constants"
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 )
@@ -13,9 +14,11 @@ import (
 // StartGossiper Start the gossiper
 func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *int, routeRumorPtr *int) {
 	rand.Seed(time.Now().UnixNano())
-	cleanFileFoldersOnStartup("./_SharedFiles/chunks")
-	cleanFileFoldersOnStartup("./_Downloads")
-	cleanFileFoldersOnStartup("./_Downloads/chunks")
+	// Clean files= folders on startup
+	cleanFileFoldersOnStartup(constants.ShareFilesChunksFolder)
+	cleanFileFoldersOnStartup(constants.DownloadedFilesFolder)
+	cleanFileFoldersOnStartup(constants.DownloadedFilesChunksFolder)
+
 	// Listen from client and peers
 	if !*simplePtr {
 		go clientListener(gossiperPtr, *simplePtr)
@@ -52,7 +55,7 @@ func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *
 func cleanFileFoldersOnStartup(folder string) error {
 
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
-		os.Mkdir(folder, 0755)
+		os.Mkdir(folder, constants.FileMode)
 	} else {
 		dir, _ := filepath.Abs(folder)
 		d, err := os.Open(dir)
