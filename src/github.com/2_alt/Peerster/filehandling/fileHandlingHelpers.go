@@ -212,14 +212,14 @@ func retrieveRequestedHashFromFileSystem(requestedHash [32]byte) []byte {
 func getChunkOrMetafileFromFileSystem(chunkHash [32]byte) []byte {
 	hashString := hashToString(chunkHash)
 	// Look for chunk in the _SharedFiles folder
-	sharedPath, _ := filepath.Abs(sharedFilesFolder + hashString)
+	sharedPath, _ := filepath.Abs(shareFilesChunksFolder + "/" + hashString)
 	if _, err := os.Stat(sharedPath); err == nil {
 		data, _ := ioutil.ReadFile(sharedPath)
 		return data
 	}
 
 	// Look for chunk in the _DownloadedFiles folder
-	downloadsPath, _ := filepath.Abs(downloadedFilesFolder + hashString)
+	downloadsPath, _ := filepath.Abs(downloadedFilesChunksFolder + "/" + hashString)
 	if _, err := os.Stat(downloadsPath); err == nil {
 		data, _ := ioutil.ReadFile(downloadsPath)
 		return data

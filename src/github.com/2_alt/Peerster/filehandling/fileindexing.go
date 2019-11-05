@@ -10,7 +10,9 @@ import (
 
 // fixed file chunk size of 8KB = fixedChunkSize bytes
 const sharedFilesFolder = "./_SharedFiles/"
+const shareFilesChunksFolder = "./_SharedFiles/chunks"
 const downloadedFilesFolder = "./_Downloads/"
+const downloadedFilesChunksFolder = "./_Downloads/chunks"
 const fixedChunkSize = 8192
 const fileMode = 0755
 const hashSize = 32
@@ -34,6 +36,10 @@ func HandleFileIndexing(fname string) {
 
 	metaFile := make(map[uint64][hashSize]byte)
 
+	if _, err := os.Stat(shareFilesChunksFolder); os.IsNotExist(err) {
+		os.Mkdir(shareFilesChunksFolder, fileMode)
+	}
+
 	for i := uint64(0); i < totalChunksCount; i++ {
 		currChunkSize := int(math.Min(fixedChunkSize, float64(fSize-int64(i*fixedChunkSize))))
 		// fmt.Println("Chunk ", i, " has size of ", currChunkSize, " bytes")
@@ -42,7 +48,7 @@ func HandleFileIndexing(fname string) {
 		buffer = buffer[:bytesRead]
 		hash := computeSha256(buffer)
 		newName := hashToString(hash)
-		chunkPath, _ := filepath.Abs(sharedFilesFolder + newName)
+		chunkPath, _ := filepath.Abs(shareFilesChunksFolder + "/" + newName)
 		_, err := os.Create(chunkPath)
 		if err != nil {
 			fmt.Println(err)
@@ -62,7 +68,6 @@ func HandleFileIndexing(fname string) {
 	metahash := computeSha256(appendedMetaFile)
 	metahashString := hashToString(metahash)
 	// fmt.Println("Metahash is === ", metahashString)
-	metafilePath, _ := filepath.Abs(sharedFilesFolder + "/" + metahashString)
-	// fmt.Println("METAHASH is == ", metahashString, " With number of bytes == ", len(appendedMetaFile))
+	metafilePath, _ := filepath.Abs(shareFilesChunksFolder + "/" + metahashString)
 	ioutil.WriteFile(metafilePath, appendedMetaFile, fileMode)
 }

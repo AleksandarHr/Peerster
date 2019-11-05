@@ -143,7 +143,7 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 							gossiper.DownloadingLock.Unlock()
 
 							// save chunk to a new file
-							chunkPath, _ := filepath.Abs(downloadedFilesFolder + chunkHashString)
+							chunkPath, _ := filepath.Abs(downloadedFilesChunksFolder + "/" + chunkHashString)
 							ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], 0755)
 							// if that was the last chunk to be downloaded close the chanel and save the full file
 							if wasLastFileChunk(gossiper, reply, state) {
@@ -186,6 +186,6 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fnam
 	gossiper.DownloadingLock.Unlock()
 
 	// write metafile to file system
-	metafilePath := buildChunkPath(downloadedFilesFolder, reply.HashValue)
+	metafilePath := buildChunkPath(downloadedFilesChunksFolder, reply.HashValue)
 	ioutil.WriteFile(metafilePath, reply.Data, 0755)
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+
 	"github.com/2_alt/Peerster/core"
 	"github.com/2_alt/Peerster/helpers"
 	"github.com/gorilla/mux"
@@ -44,7 +45,7 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		// Return json of rumors
-		msgList := goss.GetAllRumors()
+		msgList := goss.GetAllNonRouteRumors()
 		msgListJSON, err := json.Marshal(msgList)
 		helpers.HandleErrorFatal(err)
 
@@ -77,6 +78,54 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(msgListJSON)
 	}
 
+}
+
+// Handle node requests
+func (m *handlerMaker) originsHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodGet:
+		// Return json of knownpeers
+		msgKnownOrigins := goss.GetAllKnownOrigins()
+		msgKnownOriginsJSON, err := json.Marshal(msgKnownOrigins)
+		helpers.HandleErrorFatal(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(msgKnownOriginsJSON)
+	}
+}
+
+// Handle node requests
+func (m *handlerMaker) shareFilesHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodPost:
+		// Get the message
+		reqBody, err := ioutil.ReadAll(r.Body)
+		helpers.HandleErrorFatal(err)
+		text := ""
+		dest := ""
+		fileToShare := ""
+		hashRequest := ""
+		err = json.Unmarshal(reqBody, &fileToShare)
+		helpers.HandleErrorFatal(err)
+
+		// Use the client to send the message to the gossiper
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest)
+
+		// Return json of rumors
+		time.Sleep(50 * time.Millisecond)
+		fileAndHash := fileToShare
+		fileAndHashJSON, err := json.Marshal(fileAndHash)
+		helpers.HandleErrorFatal(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(fileAndHashJSON)
+	}
 }
 
 // Handle node requests
@@ -126,6 +175,8 @@ func StartServer(g *core.Gossiper) {
 	router.HandleFunc("/message", handlerMaker.messageHandler)
 	router.HandleFunc("/id", handlerMaker.idHandler)
 	router.HandleFunc("/node", handlerMaker.nodeHandler)
+	router.HandleFunc("/origin", handlerMaker.originsHandler)
+	router.HandleFunc("/share", handlerMaker.shareFilesHandler)
 
 	// Listen for http requests and serve them
 	log.Fatal(http.ListenAndServe(defaultServerPort, router))
