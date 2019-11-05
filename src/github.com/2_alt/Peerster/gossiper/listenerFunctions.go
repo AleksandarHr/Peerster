@@ -12,6 +12,7 @@ import (
 	"github.com/dedis/protobuf"
 )
 
+// TODO: Break this function into shorter separate functions
 // Main peersListener function
 func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 	// Remove all timed-out or handled mongering statuses

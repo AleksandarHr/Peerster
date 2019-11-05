@@ -1,9 +1,12 @@
 package core
 
-import "net"
-import "sync"
+import (
+	"net"
+	"sync"
 
-import "github.com/2_alt/Peerster/helpers"
+	"github.com/2_alt/Peerster/constants"
+	"github.com/2_alt/Peerster/helpers"
+)
 
 // MongeringStatus struct of a mongering status linked with a timer
 type MongeringStatus struct {
@@ -21,7 +24,7 @@ type DownloadingState struct {
 	MetafileDownloaded   bool
 	MetafileRequested    bool
 	NextChunkIndex       uint32
-	LatestRequestedChunk [32]byte
+	LatestRequestedChunk [constants.HashSize]byte
 	ChunksToRequest      [][]byte
 	DownloadingFrom      string
 	DownloadChanel       chan *DataReply
@@ -35,6 +38,7 @@ type SafeDestinationTable struct {
 }
 
 // Gossiper Struct of a gossiper
+// TODO: Change MongeringStatus to a map for faster access
 type Gossiper struct {
 	Address           *net.UDPAddr
 	Conn              *net.UDPConn

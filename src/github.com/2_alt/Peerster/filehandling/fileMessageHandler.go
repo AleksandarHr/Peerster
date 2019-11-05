@@ -83,6 +83,7 @@ func HandleClientDownloadRequest(gossiper *core.Gossiper, clientMsg *core.Messag
 	go initiateFileDownloading(gossiper, downloadFrom, fname, newState)
 }
 
+// TODO: Break this functoin into shorter functions (e.g 'handleReceivedMetafile')
 func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname string, state *core.DownloadingState) {
 	// check if downloadFrom is present in the map (must be, we just created a chanel)
 	gossiper.DownloadingLock.Lock()

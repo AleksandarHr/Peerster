@@ -1,17 +1,16 @@
 package core
 
-// Sha256HashSize - a constant for the size of a sha256 hash
-const Sha256HashSize = uint32(32)
-
-// FixedChunkSize - a constant for the size of a file chunk
-const FixedChunkSize = uint32(8192)
+import "github.com/2_alt/Peerster/constants"
 
 // FileInformation - a structure to hold all information about a given file
+// TODO: Restructure FileInformation Struct, maybe exchange some fields with
+//			DownloadingState struct? Or make better use of FileInformation by
+//			storing all chunks and such in-peer-memory, rather than in the file system
 type FileInformation struct {
 	FileName      string
 	NumberOfBytes uint32
-	MetaHash      [32]byte
-	Metafile      map[uint32][32]byte
+	MetaHash      [constants.HashSize]byte
+	Metafile      map[uint32][constants.HashSize]byte
 	ChunksMap     map[string][]byte
 }
 
