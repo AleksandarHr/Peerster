@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Peerster Layout</Title>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script>
+            function keepScrollBottom() {
+                var divPeer = document.getElementById("peer_list_id")
+                var divChat = document.getElementById("chat_id")
+                var divOrigins = document.getElementById("origins_id")
+                // var divFiles = document.getElementById("files_list_id")
+                divPeer.scrollTop = divPeer.scrollHeight;
+                divOrigins.scrollTop = divOrigins.scrollHeight;
+                // divFiles.scrollTop = divFiles.scrollHeight;
+                divChat.scrollTop = divChat.scrollHeight;
+            }
+
+            function clickShareFileButton() {
+                document.querySelector('#share_file_button').addEventListener('click', function() {
+                  document.querySelector('#share_file').click();
+                });
+
+                document.querySelector('#share_file').addEventListener('change', function() {
+                  var file = this.files[0]
+                  if (file.size > 2000000) {
+                    alert('File ' + file.name + ' exceeds the 2MB size limit')
+                  } else {
+                    alert('File chosen: ' + file.name)
+                    $.ajax({
+                      url: "/share",
+                      type: "POST",
+                      contentType: "application/json",
+                      data: JSON.stringify(file.name),
+                      dataType: "json",
+                    });
+                    refreshFiles(true);
+                  }
+                });
+                keepScrollBottom();
+            }
+
+            function clickSendButton() {
+                $("#send_button_id").click(function() {
+                    var text = document.getElementById("send_message_id").value;
+                    document.getElementById("send_message_id").value = "";
+                    if (text != "") {
+                        // Send to server and refresh list
+                        $.ajax({
+                            url: "/message",
+                            type: "POST",
+                            contentType: "application/json",
+                            data: JSON.stringify(text),
+                            dataType: "json",
+                        });
+                        refreshRumors(true);
+                    }
+                    keepScrollBottom();
+                });
+            }
+
+            function clickAddButton() {
+                $("#add_button_id").click(function() {
+                    // Add text to list
+                    var nodeAddr = document.getElementById("add_node_id").value;
+                    document.getElementById("add_node_id").value = "";
+                    if (nodeAddr != "") {
+                        // Send to server and refresh list
+                        $.ajax({
+                            url: "/node",
+                            type: "POST",
+                            contentType: "application/json",
+                            data: JSON.stringify(nodeAddr),
+                            dataType: "json",
+                        });
+                        refreshNodes(true);
+                    }
+                    keepScrollBottom();
+                });
+            }
+
+            function clickSendPrivateButton() {
+              $("#send_private_button_id").click(function() {
+                  var privateMessage = document.getElementById("send_private_message_id").value;
+                  document.getElementById("send_private_message_id").value = ""
+                  if (privateMessage != "") {
+                      // Send to server and refresh list
+                      $.ajax({
+                          url: "/private",
+                          type: "POST",
+                          contentType: "application/json",
+                          data: JSON.stringify(privateMessage),
+                          dataType: "json",
+                      });
+                      refreshPrivateMessages(true);
+                  }
+                  keepScrollBottom();
+              });
+            }
+
+            function getID() {
+                $.getJSON("/id", function(data) {
+                    $("#ownID_id").text(data)
+                });
+            }
+
+            function refreshNodes(keepScrollDown) {
+                $.getJSON("/node", function(data) {
+                    data = data + "";
+                    var itemArray = data.split(",");
+                    $("#peer_list_id").html("");
+                    for (var i = 0; i < itemArray.length; i++) {
+                        $("#peer_list_id").append(itemArray[i] + "<br>");
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refreshFiles(keepScrollDown) {
+                $.getJSON("/share", function(data) {
+                  $("#files_list_id").html("");
+                  var counter = 0;
+                  for (var key in data) {
+                    if (data.hasOwnProperty(key)) {
+                      counter ++;
+                      $("#files_list_id").append(counter + ") " + key + ":\n" + data[key] + "<br>");
+                    }
+                  }
+                  if (keepScrollDown) {
+                      keepScrollBottom();
+                  }
+                });
+            }
+
+
+            function refreshOrigins(keepScrollDown) {
+                $.getJSON("/origin", function(data) {
+                    data = data + "";
+                    var itemArray = data.split(",");
+                    $("#origins_id").html("");
+                    for (var i = 0; i < itemArray.length; i++) {
+                      $("#origins_id").append("<button class='link'>" + itemArray[i] + "</button>" + "<br>");
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refreshRumors(keepScrollDown) {
+                $.getJSON("/message", function(data) {
+                    var json
+                    $("#chat_id").html("");
+                    for (i = 0; i < data.length; i++) {
+                        var values = Object.keys(data[i]).map(function(key) {
+                            return data[i][key];
+                        });
+                        $("#chat_id").append(values[0] + " : " + values[2] + "<br>")
+                      }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+            function refreshPrivateMessages(keepScrollDown) {
+                $.getJSON("/private", function(data) {
+                    var json
+                    $("#private_id").html("");
+                    for (i = 0; i < data.length; i++) {
+                        var values = Object.keys(data[i]).map(function(key) {
+                            return data[i][key];
+                        });
+                        $("#private_id").append(values[0] + " : " + values[2] + "<br>")
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
+
+            function refresh() {
+                // Nodes
+                refreshNodes(false);
+                // Rumors
+                refreshRumors(false);
+                // Origins
+                refreshOrigins(false);
+                // Files
+                refreshFiles(false);
+            }
+
+            // Refresh chat and nodes from server
+            setInterval("refresh();", 500)
+
+        </script>
+    </head>
+
+    <body>
+
+        <table width="100%" border="0">
+
+            <!--Own ID-->
+            <tr>
+                <td colspan="4" bgcolor="#0c4f0e">
+                    <h1 id="ownID_id" align="center" style="color: white">
+                        ID: ??
+                    </h1>
+                    <!--Get own ID from server-->
+                    <script>
+                        getID();
+                    </script>
+                </td>
+            </tr>
+
+            <tr valign="top">
+
+                <!--Chat-->
+                <td bgcolor="#eee" width="35%" height="250">
+                    <table>
+                        <div id="chat_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+
+                <!--Peer list-->
+                <td bgcolor="#eee" width="15%" height="250">
+                    <table>
+                        <div id="peer_list_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+
+                <!--Private Messages-->
+                <td bgcolor="#eee" width="35%" height="250">
+                    <table>
+                        <div id="private_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                    </table>
+                </td>
+
+                <!--Known Origins-->
+                <td bgcolor="#eee" width="15%" height="250">
+                    <table>
+                        <div id="origins_id" style="height:250px;
+                        border:1px solid #ccc;
+                        font:16px/26px Georgia, Garamond, Serif;
+                        overflow:auto;">
+                        </div>
+                        <script>
+                          document.getElementById('origins_id').addEventListener('click', function(event){
+                            trgt = event.target
+                            if (trgt.tagName === "BUTTON") {
+                              chosenOrigin = trgt.innerText
+                              console.log(chosenOrigin)
+                            }
+                          });
+                        </script>
+                    </table>
+                </td>
+            </tr>
+
+            <!--Forms and buttons-->
+            <tr valign="top">
+
+                <td>
+                    <form name="sendMessageForm">
+                        <input id="send_message_id" placeholder="Write A Rumor Message"
+                             type="text" name="message">
+                    </form>
+                    <button id="send_button_id">Send</button>
+
+                    <!--Send rumor to server and refresh chat-->
+                    <script>
+                        clickSendButton();
+                    </script>
+                </td>
+
+                <td>
+                    <form name="addNodeForm">
+                        <input type="text" id="add_node_id" placeholder="Add Node <IP:Port>"
+                             name="node">
+                    </form>
+                    <button id="add_button_id">Add</button>
+
+                    <!--Send new node informations to server and refresh list-->
+                    <script>
+                        clickAddButton();
+                    </script>
+                </td>
+
+                <td col>
+                    <form name="sendPrivateMessageForm">
+                        <input id="send_private_message_id" placeholder="Write Private Message"
+                             type="text" name="private_message">
+                    </form>
+                    <button id="send_private_button_id">Send</button>
+
+                    <!--Send private message to chosen origin and refresh chat-->
+                    <script>
+                        clickSendPrivateButton();
+                    </script>
+                </td>
+            </tr>
+
+            <tr>
+              <!-- Shared Files -->
+              <td bgcolor="#eee" width="250" height="250">
+                  <table>
+                      <div id="files_list_id" style="height:250px;
+                      border:1px solid #ccc;
+                      font:16px/26px Georgia, Garamond, Serif;
+                      overflow:auto;">
+                      </div>
+                  </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td col>
+                  <input type="file" style="display:none" id="share_file"/>
+                  <button id="share_file_button">Share File</button>
+
+                  <!--Send rumor to server and refresh chat-->
+                  <script>
+                      clickShareFileButton();
+                </script>
+              </td>
+            </tr>
+
+        </table>
+    </body>
+
+</html>
