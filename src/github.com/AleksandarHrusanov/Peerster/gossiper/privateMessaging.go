@@ -22,6 +22,7 @@ func createNewPrivateMessage(origin string, msg string, dest *string) *core.Priv
 }
 
 func handlePrivateMessage(gossiper *core.Gossiper, privateMsg *core.PrivateMessage) {
+	storePrivateMessage(gossiper, privateMsg)
 	if privateMessageReachedDestination(gossiper, privateMsg) {
 		// If private message reached its destination, print to console
 		helpers.PrintOutputPrivateMessage(privateMsg.Origin, privateMsg.HopLimit, privateMsg.Text)
@@ -59,4 +60,29 @@ func forwardPrivateMessage(gossiperPtr *core.Gossiper, msg *core.PrivateMessage)
 	packetBytes, err := protobuf.Encode(&packetToSend)
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiperPtr.Conn, packetBytes)
+}
+
+func storePrivateMessage(gossiper *core.Gossiper, msg *core.PrivateMessage) {
+	orgn := msg.Origin
+	dest := msg.Destination
+	gName := gossiper.Name
+	stringToStore := orgn + ": " + msg.Text
+	messagesArray := make([]string, 0)
+	gossiper.PrivateMessages.MessageLock.Lock()
+	if strings.Compare(gName, orgn) == 0 {
+		// this is a private message FROM the current node TO someone else
+		if messages, ok := gossiper.PrivateMessages.Messages[dest]; ok {
+			messagesArray = messages
+		}
+		messagesArray = append(messagesArray, stringToStore)
+		gossiper.PrivateMessages.Messages[dest] = messagesArray
+	} else if strings.Compare(gName, dest) == 0 {
+		// this is a private message FROM someone else TO the current node
+		if messages, ok := gossiper.PrivateMessages.Messages[orgn]; ok {
+			messagesArray = messages
+		}
+		messagesArray = append(messagesArray, stringToStore)
+		gossiper.PrivateMessages.Messages[orgn] = messagesArray
+	}
+	gossiper.PrivateMessages.MessageLock.Unlock()
 }

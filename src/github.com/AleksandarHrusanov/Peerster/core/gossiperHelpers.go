@@ -17,7 +17,7 @@ import (
 
 // GetAllSharedFilesAndHashes - a function to return names and metahashes of all shared files
 func (g *Gossiper) GetAllSharedFilesAndHashes() map[string]string {
-	return g.FilesAndMetahashes.FilesAndMetahashes
+	return g.FilesAndMetahashes.FilesHashesMap
 }
 
 // GetUIPort Get the gossiper's UI port
@@ -50,6 +50,11 @@ func (g *Gossiper) GetAllNonRouteRumors() []RumorMessage {
 // GetAllKnownPeers Get the known peers of this gossiper
 func (g *Gossiper) GetAllKnownPeers() []string {
 	return g.KnownPeers
+}
+
+// GetAllPrivateMessagesBetween Get the known peers of this gossiper
+func (g *Gossiper) GetAllPrivateMessagesBetween() map[string][]string {
+	return g.PrivateMessages.Messages
 }
 
 // GetAllKnownOrigins - returns the origins known to this gossiper

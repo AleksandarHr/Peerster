@@ -152,7 +152,6 @@
 
             function refreshRumors(keepScrollDown) {
                 $.getJSON("/message", function(data) {
-                    var json
                     $("#chat_id").html("");
                     for (i = 0; i < data.length; i++) {
                         var values = Object.keys(data[i]).map(function(key) {
@@ -168,13 +167,18 @@
 
             function refreshPrivateMessages(keepScrollDown) {
                 $.getJSON("/private", function(data) {
-                    var json
                     $("#private_id").html("");
-                    for (i = 0; i < data.length; i++) {
-                        var values = Object.keys(data[i]).map(function(key) {
-                            return data[i][key];
-                        });
-                        $("#private_id").append(values[0] + " : " + values[2] + "<br>")
+                    var chosenOrigin = document.getElementById("chosen_origin_id").innerText
+                    for (var key in data) {
+                      if (data.hasOwnProperty(key) && key === chosenOrigin){
+                        var idx
+                        relevantMessages = data[key]
+                        if (relevantMessages.length > 0) {
+                          for (idx = 0; idx < relevantMessages.length; idx++) {
+                            $("#private_id").append(relevantMessages[idx] + "<br>");
+                          }
+                        }
+                      }
                     }
                     if (keepScrollDown) {
                         keepScrollBottom();
@@ -192,6 +196,8 @@
                 refreshOrigins(false);
                 // Files
                 refreshFiles(false);
+                // Private Messages
+                refreshPrivateMessages(false);
             }
 
             // Refresh chat and nodes from server
@@ -265,7 +271,18 @@
                             trgt = event.target
                             if (trgt.tagName === "BUTTON") {
                               chosenOrigin = trgt.innerText
-                              console.log(chosenOrigin)
+                              if (chosenOrigin != "") {
+                                document.getElementById("chosen_origin_id").innerText = chosenOrigin
+                                  // Send to server and refresh list
+                                  $.ajax({
+                                      url: "/private",
+                                      type: "POST",
+                                      contentType: "application/json",
+                                      data: JSON.stringify(chosenOrigin),
+                                      dataType: "json",
+                                  });
+                                  refreshPrivateMessages(true);
+                              }
                             }
                           });
                         </script>
@@ -305,7 +322,7 @@
                 <td col>
                     <form name="sendPrivateMessageForm">
                         <input id="send_private_message_id" placeholder="Write Private Message"
-                             type="text" name="private_message">
+                             type="text" name="private_message"> <text id="chosen_origin_id"></text>
                     </form>
                     <button id="send_private_button_id">Send</button>
 

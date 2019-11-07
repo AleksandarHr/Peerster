@@ -37,10 +37,22 @@ type SafeDestinationTable struct {
 	DsdvLock sync.Mutex
 }
 
-// SafeFilesAndMetahahes - a struct to hold names and metahahes of shared files
-type SafeFilesAndMetahahes struct {
-	FilesAndMetahashes map[string]string
-	FilesLock          sync.Mutex
+//SafeFilesAndMetahashes - a struct to hold names and metahahes of shared files
+type SafeFilesAndMetahashes struct {
+	FilesHashesMap map[string]string
+	FilesLock      sync.Mutex
+}
+
+//SafeDownloadingStates - a struct to hold downloading states
+type SafeDownloadingStates struct {
+	DownloadingStates map[string][]*DownloadingState
+	DownloadingLock   sync.Mutex
+}
+
+//SafePrivateMessages - a struct to hold private message exchanges
+type SafePrivateMessages struct {
+	Messages    map[string][]string
+	MessageLock sync.Mutex
 }
 
 // Gossiper Struct of a gossiper
@@ -48,19 +60,20 @@ type SafeFilesAndMetahahes struct {
 type Gossiper struct {
 	Address            *net.UDPAddr
 	Conn               *net.UDPConn
+	uiPort             string
+	LocalAddr          *net.UDPAddr
+	LocalConn          *net.UDPConn
 	Name               string
 	KnownPeers         []string
 	PeersLock          sync.Mutex
 	KnownRumors        []RumorMessage
-	Want               []PeerStatus
-	LocalAddr          *net.UDPAddr
-	LocalConn          *net.UDPConn
 	CurrentRumorID     uint32
 	RumorIDLock        sync.Mutex
+	Want               []PeerStatus
 	MongeringStatus    []*MongeringStatus
-	uiPort             string
 	DestinationTable   *SafeDestinationTable
-	FilesAndMetahashes *SafeFilesAndMetahahes
+	PrivateMessages    *SafePrivateMessages
+	FilesAndMetahashes *SafeFilesAndMetahashes
 	DownloadingStates  map[string][]*DownloadingState
 	DownloadingLock    sync.Mutex
 }
@@ -78,7 +91,8 @@ func NewGossiper(address string, name string,
 	udpConnLocal, err := net.ListenUDP("udp4", udpAddrLocal)
 	helpers.HandleErrorFatal(err)
 	dsdv := &SafeDestinationTable{Dsdv: make(map[string]string)}
-	filesAndMetahashes := &SafeFilesAndMetahahes{FilesAndMetahashes: make(map[string]string)}
+	filesAndMetahashes := &SafeFilesAndMetahashes{FilesHashesMap: make(map[string]string)}
+	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
 
 	return &Gossiper{
 		Address:            udpAddr,
@@ -93,6 +107,7 @@ func NewGossiper(address string, name string,
 		MongeringStatus:    make([]*MongeringStatus, 0),
 		uiPort:             UIPort,
 		DestinationTable:   dsdv,
+		PrivateMessages:    privateMessages,
 		FilesAndMetahashes: filesAndMetahashes,
 		DownloadingStates:  make(map[string][]*DownloadingState),
 	}

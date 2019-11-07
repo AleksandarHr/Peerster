@@ -77,7 +77,46 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(msgListJSON)
 	}
+}
 
+func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodGet:
+		// Return json of private messages with the chosen origin
+		msgList := goss.GetAllPrivateMessagesBetween()
+		msgListJSON, err := json.Marshal(msgList)
+		helpers.HandleErrorFatal(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(msgListJSON)
+
+	case http.MethodPost:
+		// Get the message
+		reqBody, err := ioutil.ReadAll(r.Body)
+		helpers.HandleErrorFatal(err)
+		text := ""
+		// dest := ""
+		// fileToShare := ""
+		// hashRequest := ""
+		err = json.Unmarshal(reqBody, &text)
+		helpers.HandleErrorFatal(err)
+
+		// Use the client to send the message to the gossiper
+		// core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest)
+
+		// Return json of rumors
+		time.Sleep(50 * time.Millisecond)
+		msgList := goss.GetAllRumors()
+		msgListJSON, err := json.Marshal(msgList)
+		helpers.HandleErrorFatal(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(msgListJSON)
+	}
 }
 
 // Handle node requests
@@ -186,6 +225,7 @@ func StartServer(g *core.Gossiper) {
 	router.HandleFunc("/node", handlerMaker.nodeHandler)
 	router.HandleFunc("/origin", handlerMaker.originsHandler)
 	router.HandleFunc("/share", handlerMaker.shareFilesHandler)
+	router.HandleFunc("/private", handlerMaker.privateMessageHandler)
 
 	// Listen for http requests and serve them
 	log.Fatal(http.ListenAndServe(defaultServerPort, router))
