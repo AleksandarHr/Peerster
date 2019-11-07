@@ -83,6 +83,7 @@
             function clickSendPrivateButton() {
               $("#send_private_button_id").click(function() {
                   var privateMessage = document.getElementById("send_private_message_id").value;
+                  var destination = document.getElementById("chosen_origin_id").innerText
                   document.getElementById("send_private_message_id").value = ""
                   if (privateMessage != "") {
                       // Send to server and refresh list
@@ -90,7 +91,7 @@
                           url: "/private",
                           type: "POST",
                           contentType: "application/json",
-                          data: JSON.stringify(privateMessage),
+                          data: JSON.stringify([privateMessage, destination]),
                           dataType: "json",
                       });
                       refreshPrivateMessages(true);
@@ -278,7 +279,7 @@
                                       url: "/private",
                                       type: "POST",
                                       contentType: "application/json",
-                                      data: JSON.stringify(chosenOrigin),
+                                      data: JSON.stringify(["", chosenOrigin]),
                                       dataType: "json",
                                   });
                                   refreshPrivateMessages(true);

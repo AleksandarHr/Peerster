@@ -2,9 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/AleksandarHrusanov/Peerster/core"
@@ -96,20 +98,27 @@ func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Requ
 	case http.MethodPost:
 		// Get the message
 		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("ERROR")
+		} else if reqBody == nil {
+			fmt.Println("BODY NIL")
+		}
+		fmt.Println("BODY length = ", len(reqBody))
 		helpers.HandleErrorFatal(err)
-		text := ""
-		// dest := ""
-		// fileToShare := ""
-		// hashRequest := ""
-		err = json.Unmarshal(reqBody, &text)
+		var msg []string
+		fileToShare := ""
+		hashRequest := ""
+		err = json.Unmarshal(reqBody, &msg)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		// core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest)
+		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &msg[0], &msg[1], &fileToShare, &hashRequest)
+		}
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
-		msgList := goss.GetAllRumors()
+		msgList := goss.GetAllPrivateMessagesBetween()
 		msgListJSON, err := json.Marshal(msgList)
 		helpers.HandleErrorFatal(err)
 
