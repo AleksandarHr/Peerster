@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -98,12 +97,6 @@ func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Requ
 	case http.MethodPost:
 		// Get the message
 		reqBody, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			fmt.Println("ERROR")
-		} else if reqBody == nil {
-			fmt.Println("BODY NIL")
-		}
-		fmt.Println("BODY length = ", len(reqBody))
 		helpers.HandleErrorFatal(err)
 		var msg []string
 		fileToShare := ""
@@ -186,6 +179,27 @@ func (m *handlerMaker) shareFilesHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // Handle node requests
+func (m *handlerMaker) downloadFilesHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodPost:
+		reqBody, err := ioutil.ReadAll(r.Body)
+		helpers.HandleErrorFatal(err)
+		// -dest, -file, -request
+		var msg []string
+		txt := ""
+		err = json.Unmarshal(reqBody, &msg)
+		helpers.HandleErrorFatal(err)
+
+		// Use the client to send the message to the gossiper
+		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &txt, &msg[0], &msg[1], &msg[2])
+		}
+	}
+}
+
+// Handle node requests
 func (m *handlerMaker) nodeHandler(w http.ResponseWriter, r *http.Request) {
 	goss := m.G
 
@@ -235,6 +249,7 @@ func StartServer(g *core.Gossiper) {
 	router.HandleFunc("/origin", handlerMaker.originsHandler)
 	router.HandleFunc("/share", handlerMaker.shareFilesHandler)
 	router.HandleFunc("/private", handlerMaker.privateMessageHandler)
+	router.HandleFunc("/download", handlerMaker.downloadFilesHandler)
 
 	// Listen for http requests and serve them
 	log.Fatal(http.ListenAndServe(defaultServerPort, router))

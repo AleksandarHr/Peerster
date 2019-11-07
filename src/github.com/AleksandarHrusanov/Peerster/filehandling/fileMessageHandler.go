@@ -2,6 +2,7 @@ package filehandling
 
 import (
 	"bytes"
+	"encoding/hex"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -81,6 +82,10 @@ func HandleClientDownloadRequest(gossiper *core.Gossiper, clientMsg *core.Messag
 
 	// start a new downloading go routine
 	go initiateFileDownloading(gossiper, downloadFrom, fname, newState)
+
+	gossiper.FilesAndMetahashes.FilesLock.Lock()
+	gossiper.FilesAndMetahashes.FilesHashesMap[fname] = hex.EncodeToString(requestedMetaHash)
+	gossiper.FilesAndMetahashes.FilesLock.Unlock()
 }
 
 // TODO: Break this functoin into shorter functions (e.g 'handleReceivedMetafile')

@@ -80,6 +80,31 @@
                 });
             }
 
+            function clickDownloadFile() {
+              $("#download_file_button_id").click(function() {
+                var dest = document.getElementById("dest_node_id").value;
+                document.getElementById("dest_node_id").value = "";
+                var saveAs = document.getElementById("save_as_id").value;
+                document.getElementById("save_as_id").value = "";
+                var fileHash = document.getElementById("request_hash_id").value;
+                document.getElementById("request_hash_id").value = "";
+                console.log(dest)
+                console.log(saveAs)
+                console.log(fileHash)
+                if (dest != "" && saveAs != "" && fileHash != "") {
+                  $.ajax({
+                    url: "/download",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify([dest, saveAs, fileHash]),
+                    dataType: "josn",
+                  });
+                  refreshFiles(true);
+                }
+                keepScrollBottom();
+              });
+            }
+
             function clickSendPrivateButton() {
               $("#send_private_button_id").click(function() {
                   var privateMessage = document.getElementById("send_private_message_id").value;
@@ -345,6 +370,20 @@
                       </div>
                   </table>
               </td>
+              <td>
+              <form>
+                Destination Node:<br>
+                <input type="text" id="dest_node_id"> <br>
+                Save As:<br>
+                <input type="text" id="save_as_id"> <br>
+                Request Hash:<br>
+                <input type="text" id="request_hash_id"> <br>
+              </form>
+              <button id="download_file_button_id">Download File</button>
+              <script>
+                clickDownloadFile();
+              </script>
+            </td>
             </tr>
 
             <tr>
@@ -352,7 +391,7 @@
                   <input type="file" style="display:none" id="share_file"/>
                   <button id="share_file_button">Share File</button>
 
-                  <!--Send rumor to server and refresh chat-->
+                  <!--Slice, index and hash file (share file)-->
                   <script>
                       clickShareFileButton();
                 </script>
