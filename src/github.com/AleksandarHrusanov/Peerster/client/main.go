@@ -17,12 +17,14 @@ func main() {
 	destPtr := flag.String("dest", "", "message to be sent")
 	fileToSharePtr := flag.String("file", "", "file to be indexed by the gossiper")
 	requestHash := flag.String("request", "", "string representation of the metahash of the file to request")
+	keywords := flag.String("keywords", "", "string of comma-separated keywords used for file search")
+	budget := flag.Int("budget", 2, "initial budget used for the expanding ring search")
 	flag.Parse()
 	localAddressAndPort := "127.0.0.1:" + *uIPortPtr
 
 	// Establish UDP connection and send the message
 	checkFlags(uIPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash)
-	core.ClientConnectAndSend(localAddressAndPort, msgPtr, destPtr, fileToSharePtr, requestHash)
+	core.ClientConnectAndSend(localAddressAndPort, msgPtr, destPtr, fileToSharePtr, requestHash, keywords, budget)
 }
 
 func checkFlags(uiPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash *string) {

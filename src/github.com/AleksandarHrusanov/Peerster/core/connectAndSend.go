@@ -11,10 +11,12 @@ import (
 
 // ClientConnectAndSend connects to the given gossiper's address and send the text to it.
 // This function is used by the server to send a message to the gossiper.
-func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string, request *string) {
+func ClientConnectAndSend(remoteAddr string, text *string, destination *string, fileToShare *string,
+	request *string, keywords *string, bdg *int) {
 	// Create GossipPacket and encapsulate message into it
 	requestBytes := make([]byte, 0)
-	msg := &Message{Text: *text, Destination: destination, File: fileToShare}
+	budget := uint64(*bdg)
+	msg := &Message{Text: *text, Destination: destination, File: fileToShare, Keywords: keywords, Budget: &budget}
 	if strings.Compare(*request, "") != 0 {
 		decoded, err := hex.DecodeString(*request)
 		if err == nil {

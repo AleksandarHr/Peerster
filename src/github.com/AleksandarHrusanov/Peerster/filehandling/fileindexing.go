@@ -16,6 +16,7 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 
 	filePath, _ := filepath.Abs(constants.SharedFilesFolder + fname)
 	file, err := os.Open(filePath)
+	fileInfo := &core.FileInformation{FileName: fname};
 
 	if err != nil {
 		fmt.Println(err)
@@ -26,7 +27,7 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	fInfo, _ := file.Stat()
 	var fSize int64 = fInfo.Size()
 	totalChunksCount := uint64(math.Ceil(float64(fSize) / float64(constants.FixedChunkSize)))
-	// fmt.Println("Spliiting into ", totalChunksCount, " chunks.")
+	fileInfo.TotalChunksCount = totalChunksCount
 
 	metaFile := make(map[uint64][constants.HashSize]byte)
 
@@ -51,6 +52,8 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 		}
 
 		metaFile[i] = hash
+		fileInfo.Metafile[uint32(i)] = hash
+		fileInfo.ChunksMap[newName] = buffer
 		ioutil.WriteFile(chunkPath, buffer, os.ModeAppend)
 	}
 
@@ -61,9 +64,11 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	}
 
 	metahash := computeSha256(appendedMetaFile)
+	fileInfo.MetaHash = metahash;
 	metahashString := hashToString(metahash)
 	gossiper.FilesAndMetahashes.FilesLock.Lock()
 	gossiper.FilesAndMetahashes.FilesHashesMap[fname] = metahashString
+	gossiper.FilesAndMetahashes.MetahashStringToFile[metahashString] = fileInfo
 	gossiper.FilesAndMetahashes.FilesLock.Unlock()
 	// fmt.Println("Metahash is === ", metahashString)
 	metafilePath, _ := filepath.Abs(constants.ShareFilesChunksFolder + "/" + metahashString)

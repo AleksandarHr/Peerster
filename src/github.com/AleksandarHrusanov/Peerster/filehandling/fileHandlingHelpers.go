@@ -127,17 +127,6 @@ func createDownloadingState(clientMsg *core.Message) *core.DownloadingState {
 	return &state
 }
 
-func createFileInformation(name string, numBytes uint32, metafile map[uint32][constants.HashSize]byte,
-	dataChunks map[string][]byte) *core.FileInformation {
-	fileInfo := core.FileInformation{FileName: name}
-	// fileInfo.Metafile = concatenateMetafile(hashedChunks)
-	fileInfo.Metafile = metafile
-	fileInfo.NumberOfBytes = uint32(numBytes)
-	fileInfo.MetaHash = computeSha256(concatenateMetafile(metafile))
-	fileInfo.ChunksMap = dataChunks
-	return &fileInfo
-}
-
 func computeSha256(data []byte) [constants.HashSize]byte {
 	hash := sha256.Sum256(data)
 	return hash
