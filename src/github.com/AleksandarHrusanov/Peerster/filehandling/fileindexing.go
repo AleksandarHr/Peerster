@@ -69,8 +69,11 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	gossiper.FilesAndMetahashes.FilesLock.Lock()
 	gossiper.FilesAndMetahashes.FilesHashesMap[fname] = metahashString
 	gossiper.FilesAndMetahashes.MetahashStringToFile[metahashString] = fileInfo
+	gossiper.FilesAndMetahashes.AllChunks[metahashString] = metahash[:]
+	for k, v := range fileInfo.ChunksMap {
+		gossiper.FilesAndMetahashes.AllChunks[k] = v
+	}
 	gossiper.FilesAndMetahashes.FilesLock.Unlock()
-	// fmt.Println("Metahash is === ", metahashString)
 	metafilePath, _ := filepath.Abs(constants.ShareFilesChunksFolder + "/" + metahashString)
 	ioutil.WriteFile(metafilePath, appendedMetaFile, constants.FileMode)
 }

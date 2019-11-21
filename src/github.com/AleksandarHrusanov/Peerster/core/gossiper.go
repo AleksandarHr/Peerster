@@ -41,6 +41,7 @@ type SafeDestinationTable struct {
 type SafeFilesAndMetahashes struct {
 	MetahashStringToFile	map[string]*FileInformation
 	FilesHashesMap 			map[string]string
+	AllChunks				map[string][]byte
 	FilesLock      			sync.Mutex
 }
 
@@ -95,10 +96,10 @@ func NewGossiper(address string, name string,
 	helpers.HandleErrorFatal(err)
 	udpConnLocal, err := net.ListenUDP("udp4", udpAddrLocal)
 	helpers.HandleErrorFatal(err)
-	dsdv := &SafeDestinationTable{Dsdv: make(map[string]string)}
-	filesAndMetahashes := &SafeFilesAndMetahashes{FilesHashesMap: make(map[string]string)}
-	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
-	searchRequest := &MyCurrentSearchRequest{ SearchRequestChanel: make(chan *SearchReply), FullyMatched: make([]*FullMatch, 0)}
+	filesAndMetahashes := createSafeFilesAndMetahashes()
+	dsdv := createSafeDestinationTable()
+	privateMessages := createSafePrivateMessages()
+	searchRequest := createCurrentSearchRequest()
 
 	return &Gossiper{
 		Address:            udpAddr,
@@ -118,4 +119,24 @@ func NewGossiper(address string, name string,
 		DownloadingStates:  make(map[string][]*DownloadingState),
 		CurrentSearch:		searchRequest,
 	}
+}
+
+func createSafeFilesAndMetahashes() *SafeFilesAndMetahashes {
+	filesAndMetahashes := &SafeFilesAndMetahashes{FilesHashesMap: make(map[string]string),
+		MetahashStringToFile: make(map[string]*FileInformation), AllChunks: make(map[string][]byte)}
+	return filesAndMetahashes
+}
+
+func createCurrentSearchRequest() *MyCurrentSearchRequest {
+	searchRequest := &MyCurrentSearchRequest{ SearchRequestChanel: make(chan *SearchReply), FullyMatched: make([]*FullMatch, 0)}
+	return searchRequest
+}
+func createSafePrivateMessages() *SafePrivateMessages {
+	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
+	return privateMessages
+}
+
+func createSafeDestinationTable() *SafeDestinationTable {
+	dsdv := &SafeDestinationTable{Dsdv: make(map[string]string)}
+	return dsdv
 }

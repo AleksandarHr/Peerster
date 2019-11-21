@@ -175,6 +175,15 @@ func convertSliceTo32Fixed(slice []byte) [constants.HashSize]byte {
 
 // Handle requested hash from file system
 // ======================================
+
+func retrieveRequestedHashFromGossiper(gossiper *core.Gossiper, requestedHash [constants.HashSize]byte) []byte {
+	allChunks := gossiper.FilesAndMetahashes.AllChunks
+	hashString := hashToString(requestedHash)
+	chunk := allChunks[hashString]
+
+	return chunk
+}
+
 func retrieveRequestedHashFromFileSystem(requestedHash [constants.HashSize]byte) []byte {
 	hashBytes := getChunkOrMetafileFromFileSystem(requestedHash)
 	if hashBytes != nil {
