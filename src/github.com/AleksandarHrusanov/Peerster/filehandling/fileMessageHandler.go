@@ -3,12 +3,9 @@ package filehandling
 import (
 	"bytes"
 	"encoding/hex"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/AleksandarHrusanov/Peerster/constants"
 	"github.com/AleksandarHrusanov/Peerster/core"
 	"github.com/AleksandarHrusanov/Peerster/helpers"
 )
@@ -46,7 +43,7 @@ func HandlePeerDataRequest(gossiper *core.Gossiper, dataRequest *core.DataReques
 	if strings.Compare(dataRequest.Destination, gossiper.Name) == 0 {
 		// packet is for this gossiper
 		// retrieve requested chunk/metafile from file system
-		retrievedChunk := retrieveRequestedHashFromFileSystem(convertSliceTo32Fixed(dataRequest.HashValue))
+		retrievedChunk := retrieveRequestedHashFromGossiperMemory(gossiper, convertSliceTo32Fixed(dataRequest.HashValue))
 		if retrievedChunk == nil {
 			// chunk was not found, do nothing
 			return
@@ -84,7 +81,7 @@ func HandleClientDownloadRequest(gossiper *core.Gossiper, clientMsg *core.Messag
 	go initiateFileDownloading(gossiper, downloadFrom, fname, newState)
 
 	gossiper.FilesAndMetahashes.FilesLock.Lock()
-	gossiper.FilesAndMetahashes.FilesHashesMap[fname] = hex.EncodeToString(requestedMetaHash)
+	gossiper.FilesAndMetahashes.FileNamesToMetahashesMap[fname] = hex.EncodeToString(requestedMetaHash)
 	gossiper.FilesAndMetahashes.FilesLock.Unlock()
 }
 
@@ -149,8 +146,8 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 							gossiper.DownloadingLock.Unlock()
 
 							// save chunk to a new file
-							chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
-							ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], constants.FileMode)
+							// chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
+							// ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], constants.FileMode)
 							// if that was the last chunk to be downloaded close the chanel and save the full file
 							if wasLastFileChunk(gossiper, reply, state) {
 								helpers.PrintReconstructedFile(fname)
@@ -192,6 +189,6 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fnam
 	gossiper.DownloadingLock.Unlock()
 
 	// write metafile to file system
-	metafilePath := buildChunkPath(constants.DownloadedFilesChunksFolder, reply.HashValue)
-	ioutil.WriteFile(metafilePath, reply.Data, constants.FileMode)
+	// metafilePath := buildChunkPath(constants.DownloadedFilesChunksFolder, reply.HashValue)
+	// ioutil.WriteFile(metafilePath, reply.Data, constants.FileMode)
 }

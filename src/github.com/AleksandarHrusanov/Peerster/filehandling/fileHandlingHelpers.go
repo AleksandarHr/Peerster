@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -91,7 +92,7 @@ func replyWasExpected(requestHash []byte, reply *core.DataReply) bool {
 
 // returns true if the hash value in the reply corresponds to the data
 func replyIntegrityCheck(reply *core.DataReply) bool {
-	dataHash := computeSha256(reply.Data)
+	dataHash := computeSha256(reply.Data[:len(reply.Data)])
 	actualHash := reply.HashValue
 	return bytes.Compare(actualHash, dataHash[:]) == 0
 }
@@ -132,7 +133,6 @@ func createFileInformation(name string, numBytes uint32, metafile map[uint32][co
 	fileInfo := core.FileInformation{FileName: name}
 	// fileInfo.Metafile = concatenateMetafile(hashedChunks)
 	fileInfo.Metafile = metafile
-	fileInfo.NumberOfBytes = uint32(numBytes)
 	fileInfo.MetaHash = computeSha256(concatenateMetafile(metafile))
 	fileInfo.ChunksMap = dataChunks
 	return &fileInfo
@@ -193,6 +193,19 @@ func retrieveRequestedHashFromFileSystem(requestedHash [constants.HashSize]byte)
 		return hashBytes
 	}
 	return nil
+}
+
+func retrieveRequestedHashFromGossiperMemory(gossiper *core.Gossiper, requestedHash [constants.HashSize]byte) []byte {
+	allChunks := gossiper.FilesAndMetahashes.AllChunks
+	metahashes := gossiper.FilesAndMetahashes.MetaHashes
+
+	hashString := hashToString(requestedHash)
+	if hashBytes, ok := metahashes[hashString]; ok {
+		fmt.Println("Retrieving a metafile")
+		return hashBytes[:]
+	}
+
+	return allChunks[hashString]
 }
 
 // if the given fileInfo has the requested chunk, return it

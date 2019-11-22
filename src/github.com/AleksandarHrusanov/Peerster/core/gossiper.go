@@ -39,8 +39,11 @@ type SafeDestinationTable struct {
 
 //SafeFilesAndMetahashes - a struct to hold names and metahahes of shared files
 type SafeFilesAndMetahashes struct {
-	FilesHashesMap map[string]string
-	FilesLock      sync.Mutex
+	MetaStringToFileInfo     map[string]*FileInformation
+	FileNamesToMetahashesMap map[string]string
+	MetaHashes               map[string][]byte
+	AllChunks                map[string][]byte
+	FilesLock                sync.Mutex
 }
 
 //SafeDownloadingStates - a struct to hold downloading states
@@ -91,7 +94,9 @@ func NewGossiper(address string, name string,
 	udpConnLocal, err := net.ListenUDP("udp4", udpAddrLocal)
 	helpers.HandleErrorFatal(err)
 	dsdv := &SafeDestinationTable{Dsdv: make(map[string]string)}
-	filesAndMetahashes := &SafeFilesAndMetahashes{FilesHashesMap: make(map[string]string)}
+	filesAndMetahashes := &SafeFilesAndMetahashes{FileNamesToMetahashesMap: make(map[string]string),
+		MetaStringToFileInfo: make(map[string]*FileInformation),
+		AllChunks:            make(map[string][]byte), MetaHashes: make(map[string][]byte)}
 	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
 
 	return &Gossiper{

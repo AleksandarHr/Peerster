@@ -17,7 +17,7 @@ import (
 
 // GetAllSharedFilesAndHashes - a function to return names and metahashes of all shared files
 func (g *Gossiper) GetAllSharedFilesAndHashes() map[string]string {
-	return g.FilesAndMetahashes.FilesHashesMap
+	return g.FilesAndMetahashes.FileNamesToMetahashesMap
 }
 
 // GetUIPort Get the gossiper's UI port

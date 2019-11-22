@@ -7,11 +7,11 @@ import "github.com/AleksandarHrusanov/Peerster/constants"
 //			DownloadingState struct? Or make better use of FileInformation by
 //			storing all chunks and such in-peer-memory, rather than in the file system
 type FileInformation struct {
-	FileName      string
-	NumberOfBytes uint32
-	MetaHash      [constants.HashSize]byte
-	Metafile      map[uint32][constants.HashSize]byte
-	ChunksMap     map[string][]byte
+	FileName    string
+	ChunksCount uint64
+	MetaHash    [constants.HashSize]byte
+	Metafile    map[uint32][constants.HashSize]byte
+	ChunksMap   map[string][]byte
 }
 
 // SimpleMessage simple message for part 1
