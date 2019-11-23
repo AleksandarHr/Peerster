@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/AleksandarHrusanov/Peerster/core"
+	"github.com/AleksandarHrusanov/Peerster/helpers"
+	"github.com/dedis/protobuf"
 )
 
 // A function to handle a search request coming from the client of this peerster node
@@ -44,14 +46,36 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 
 	// 2) process the search request locally (and possibly send a SearchReply)
 	//   Check both _SharedFiles and _Downloades (gossiper memory) for keywords matches
+	keywordsMatches := make([]*core.SearchResult, 0) // TODO:: populate this []*SearchResult array
 	//   If any matches found, create and send a Search Reply (using next hop?)
+	if len(keywordsMatches) != 0 {
+		searchReply := &core.SearchReply{Origin: gossiper.Name, Destination: searchRequest.Origin, HopLimit: uint32(10), Results: keywordsMatches}
+		forwardSearchReply(gossiper, searchReply)
+	}
 
 	// 4) subtract 1 from the request's budget
-	//    4.2) If remaining budget is <= 0, do nothing, return
+	searchRequest.Budget--
+	if searchRequest.Budget <= 0 {
+		//    4.2) If remaining budget is <= 0, do nothing, return
+		return
+	}
 	//    4.1) If remaining budget is greater than 0, redistribute the remainig
 	//         budget as evenly as possible to up to B neighboring nodes
 	//         every peer gets a search request with budget = integer part of (budget / #neighbours)
 	//         and then iteratively add 1 to the budget of the first R neighbors (where R = budget % # neighbors)
+	gossiper.PeersLock.Lock()
+	peers := gossiper.KnownPeers
+	baseBudget := searchRequest.Budget / uint64(len(peers))
+	extraBudget := searchRequest.Budget % uint64(len(peers))
+	for _, p := range peers {
+		tempBudget := baseBudget
+		if extraBudget > 0 {
+			tempBudget++
+			extraBudget--
+		}
+		// TODO: SEND
+	}
+	gossiper.PeersLock.Unlock()
 }
 
 // A function to handle a search reply coming from another peerster node
@@ -98,4 +122,28 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 		}
 	}
 
+}
+
+func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
+
+	if msg.HopLimit == 0 {
+		// if we have reached the HopLimit, drop the message
+		return
+	}
+	gossiper.DestinationTable.DsdvLock.Lock()
+	forwardingAddress := gossiper.DestinationTable.Dsdv[msg.Destination]
+	gossiper.DestinationTable.DsdvLock.Unlock()
+	// If current node has no information about next hop to the destination in question
+	if strings.Compare(forwardingAddress, "") == 0 {
+		// fmt.Println("NO FORWARDING ADDRESS AGAIN :??")
+		// TODO: What to do if there is no 'next hop' known when peer has to forward a private packet
+	}
+
+	// Decrement the HopLimit right before forwarding the packet
+	msg.HopLimit--
+	// Encode and send packet
+	packetToSend := &core.GossipPacket{SearchReply: msg}
+	packetBytes, err := protobuf.Encode(&packetToSend)
+	helpers.HandleErrorFatal(err)
+	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
 }

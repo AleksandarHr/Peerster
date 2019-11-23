@@ -97,7 +97,7 @@ type SearchRequest struct {
 type SearchReply struct {
 	Origin      string
 	Destination string
-	Hoplimit    uint32 // set to 10 by default
+	HopLimit    uint32 // set to 10 by default
 	Results     []*SearchResult
 }
 
