@@ -66,7 +66,7 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, nil, nil)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
@@ -106,7 +106,7 @@ func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Requ
 
 		// Use the client to send the message to the gossiper
 		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
-			core.ClientConnectAndSend(goss.GetLocalAddr(), &msg[0], &msg[1], &fileToShare, &hashRequest)
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &msg[0], &msg[1], &fileToShare, &hashRequest, nil, nil)
 		}
 
 		// Return json of rumors
@@ -164,7 +164,7 @@ func (m *handlerMaker) shareFilesHandler(w http.ResponseWriter, r *http.Request)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, nil, nil)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
@@ -194,7 +194,7 @@ func (m *handlerMaker) downloadFilesHandler(w http.ResponseWriter, r *http.Reque
 
 		// Use the client to send the message to the gossiper
 		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
-			core.ClientConnectAndSend(goss.GetLocalAddr(), &txt, &msg[0], &msg[1], &msg[2])
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &txt, &msg[0], &msg[1], &msg[2], nil, nil)
 		}
 	}
 }

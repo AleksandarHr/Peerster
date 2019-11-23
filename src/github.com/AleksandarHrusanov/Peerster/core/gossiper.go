@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/AleksandarHrusanov/Peerster/constants"
+	"github.com/AleksandarHrusanov/Peerster/filesearching"
 	"github.com/AleksandarHrusanov/Peerster/helpers"
 )
 
@@ -79,6 +80,7 @@ type Gossiper struct {
 	FilesAndMetahashes *SafeFilesAndMetahashes
 	DownloadingStates  map[string][]*DownloadingState
 	DownloadingLock    sync.Mutex
+	OngoingFileSearch  *filesearching.SafeOngoingFileSearching
 }
 
 // NewGossiper Create a new Gossiper
@@ -98,6 +100,7 @@ func NewGossiper(address string, name string,
 		MetaStringToFileInfo: make(map[string]*FileInformation),
 		AllChunks:            make(map[string][]byte), MetaHashes: make(map[string][]byte)}
 	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
+	fileSearch := CreateSafeOngoingFileSearching()
 
 	return &Gossiper{
 		Address:            udpAddr,
@@ -115,5 +118,6 @@ func NewGossiper(address string, name string,
 		PrivateMessages:    privateMessages,
 		FilesAndMetahashes: filesAndMetahashes,
 		DownloadingStates:  make(map[string][]*DownloadingState),
+		OngoingFileSearch:  fileSearch,
 	}
 }
