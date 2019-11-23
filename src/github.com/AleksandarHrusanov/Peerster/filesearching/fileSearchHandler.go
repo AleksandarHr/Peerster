@@ -65,15 +65,25 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 	//         and then iteratively add 1 to the budget of the first R neighbors (where R = budget % # neighbors)
 	gossiper.PeersLock.Lock()
 	peers := gossiper.KnownPeers
-	baseBudget := searchRequest.Budget / uint64(len(peers))
-	extraBudget := searchRequest.Budget % uint64(len(peers))
-	for _, p := range peers {
-		tempBudget := baseBudget
-		if extraBudget > 0 {
-			tempBudget++
-			extraBudget--
-		}
-		// TODO: SEND
+	baseBudget := searchRequest.Budget / len(peers)
+	extraBudget := searchRequest.Budget % len(peers)
+	idx := 0
+	for ; idx < extraBudget; idx++ {
+		tempBudget := baseBudget + 1
+		// SEND basebudget + 1 to extraBudget number of peers
+		newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
+		packetToSend := &core.GossipPacket{SearchRequest: newSearchRequest}
+		packetBytes, err := protobuf.Encode(&packetToSend)
+		helpers.HandleErrorFatal(err)
+		core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+	}
+	for ; idx < len(peers); idx++ {
+		// send basebudget to the rest of the peers
+		newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
+		packetToSend := &core.GossipPacket{SearchRequest: newSearchRequest}
+		packetBytes, err := protobuf.Encode(&packetToSend)
+		helpers.HandleErrorFatal(err)
+		core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
 	}
 	gossiper.PeersLock.Unlock()
 }
@@ -82,10 +92,18 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 func HandlePeerSearchReply(gossiper *core.Gossiper, searchReply *core.SearchReply) {
 	// NOTE: assume all search replies correspond to previously-issued search requests
 	// 1) if destination field is not the current gossiper's name, forward with hop limit
+	if strings.Compare(gossiper.Name, searchReply.Destination) != 0 {
+		forwardSearchReply(gossiper, searchReply)
+		return
+	}
 	// 2) if current node was the destination of the serach request
-	//    2.1) if search request has expired, do nothing/ return
+	if !gossiper.OngoingFileSearch.IsOngoing {
+		//    2.1) if search request has expired, do nothing/ return
+		return
+	}
 	//    2.2) send the search reply to the SafeOngoingFileSearching chanel
 	//        for handling (happens in the initiateFileSearching go routine)
+	gossiper.OngoingFileSearch.SearchReplyChanel <- searchReply
 }
 
 func initiateFileSearching(gossiper *core.Gossiper) {
