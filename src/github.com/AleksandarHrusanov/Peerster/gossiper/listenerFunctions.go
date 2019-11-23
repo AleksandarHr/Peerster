@@ -8,6 +8,7 @@ import (
 
 	"github.com/AleksandarHrusanov/Peerster/core"
 	"github.com/AleksandarHrusanov/Peerster/filehandling"
+	"github.com/AleksandarHrusanov/Peerster/filesearching"
 	"github.com/AleksandarHrusanov/Peerster/helpers"
 	"github.com/dedis/protobuf"
 )
@@ -301,6 +302,8 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 			} else if isClientRequestingDownload(&message) {
 				// Handle message from client to request a file download
 				filehandling.HandleClientDownloadRequest(gossiper, &message)
+			} else if isClientRequestingFileSearch(&message) {
+				filesearching.HandleClientSearchRequest(gossiper, &message)
 			} else {
 				if isClientMessagePrivate(&message) {
 					// Handle private messages from client
@@ -344,6 +347,10 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 // true if the client did not specify a destination - only wants to index and divide file locally
 func isClientFileIndexing(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.File), "") != 0 && (strings.Compare(*(clientMsg.Destination), "") == 0))
+}
+
+func isClientRequestingFileSearch(clientMsg *core.Message) {
+	return (strings.Compare(*(clientMsg.Keywords), "") != 0)
 }
 
 // true if the client did not specify a destination - only wants to index and divide file locally

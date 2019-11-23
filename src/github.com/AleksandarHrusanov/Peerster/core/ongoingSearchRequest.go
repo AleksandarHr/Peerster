@@ -1,9 +1,7 @@
-package filesearching
+package core
 
 import (
 	"sync"
-
-	"github.com/AleksandarHrusanov/Peerster/core"
 )
 
 type FileSearchMatch struct {
@@ -15,20 +13,20 @@ type FileSearchMatch struct {
 
 // A struct to hold information about the currently executed search request
 type SafeOngoingFileSearching struct {
-	SearchReplyChanel chan *core.SearchReply
+	SearchReplyChanel chan *SearchReply
 	IsOngoing         bool
-	SearchRequestLock sync.Mutex
 	Budget            uint64
 	Keywords          []string
 	// maps from filename to FileSearchMatch struct
-	MatchesFound map[string]*FileSearchMatch
+	MatchesFound      map[string]*FileSearchMatch
+	SearchRequestLock sync.Mutex
 }
 
 func CreateSafeOngoingFileSearching() *SafeOngoingFileSearching {
-	ch := make(chan *core.SearchReply)
+	ch := make(chan *SearchReply)
 	matches := make(map[string]*FileSearchMatch)
 
-	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: ch, MatchesFound: matches}
+	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: ch, MatchesFound: matches, IsOngoing: true}
 
 	return fileSearch
 }
