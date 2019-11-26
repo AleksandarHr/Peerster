@@ -20,3 +20,9 @@ const FileMode = 0755
 
 // HashSize = the size of a sha256 hash
 const HashSize = 32
+
+const StartingRingSearchBudget = uint64(2)
+
+const RingSearchBudgetLimit = uint64(32)
+
+const FullMatchesThreshold = 2
