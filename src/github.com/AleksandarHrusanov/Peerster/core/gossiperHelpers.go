@@ -35,6 +35,26 @@ func (g *Gossiper) GetAllRumors() []RumorMessage {
 	return g.KnownRumors
 }
 
+// GetAllFileNames - return an array of filenames shared/downloaded by the gossiper
+func (g *Gossiper) GetAllFileNames() []string {
+	g.FilesAndMetahashes.FilesLock.Lock()
+	filenames := make([]string, 0)
+
+	for fname, _ := range g.FilesAndMetahashes.FileNamesToMetahashesMap {
+		filenames = append(filenames, fname)
+	}
+	g.FilesAndMetahashes.FilesLock.Unlock()
+
+	return filenames
+}
+
+func (g *Gossiper) GetAllKnownFiles() *SafeFilesAndMetahashes {
+	g.FilesAndMetahashes.FilesLock.Lock()
+	files := g.FilesAndMetahashes
+	g.FilesAndMetahashes.FilesLock.Unlock()
+	return files
+}
+
 // GetAllNonRouteRumors Get the rumors known by the gossiper
 func (g *Gossiper) GetAllNonRouteRumors() []RumorMessage {
 	allRumors := g.KnownRumors

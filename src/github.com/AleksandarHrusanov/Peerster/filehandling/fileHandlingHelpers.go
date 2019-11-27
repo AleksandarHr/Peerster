@@ -77,9 +77,8 @@ func forwardDataReply(gossiper *core.Gossiper, msg *core.DataReply) {
 }
 
 // a function to resend the latest requested chunk
-func resendDataRequest(gossiper *core.Gossiper, downloadFrom string, state *core.DownloadingState) {
+func resendDataRequest(gossiper *core.Gossiper, downloadFrom string, chunkToRerequest [constants.HashSize]byte) {
 	if _, ok := gossiper.DownloadingStates[downloadFrom]; ok {
-		chunkToRerequest := state.LatestRequestedChunk
 		request := createDataRequest(gossiper.Name, downloadFrom, chunkToRerequest[:])
 		forwardDataRequest(gossiper, request)
 	}

@@ -31,6 +31,16 @@ type DownloadingState struct {
 	StateLock            sync.Mutex
 }
 
+type ChunkedDownloadingState struct {
+	FileToDownload       *FileSearchMatch
+	DownloadFinished     bool
+	NextChunkIndex       uint32
+	LatestRequestedChunk [constants.HashSize]byte
+	LatestRequestedFrom  string
+	StateLock            sync.Mutex
+	DownloadChanel       chan *DataReply
+}
+
 // SafeDestinationTable - a struct for the DSDV with a lock
 type SafeDestinationTable struct {
 	Dsdv     map[string]string

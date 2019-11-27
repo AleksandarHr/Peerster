@@ -1,6 +1,7 @@
-package filesearching
+package filehandling
 
 import (
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ func HandleClientSearchRequest(gossiper *core.Gossiper, clientSearchRequest *cor
 func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.SearchRequest) {
 	// If the origin of the search request is not the this peer node itself
 	// 1) Detect and discard duplicate requests (e.g. same Origin and same Keywords) in the last 0.5 seconds
-	if strings.Compare(searchRequest.Origin, gossiper.Name) != 0 {
+	if strings.Compare(searchRequest.Origin, gossiper.Name) == 0 {
 		searchSignature := append([]string{searchRequest.Origin}, searchRequest.Keywords...)
 		duplicateSignature := strings.Join(searchSignature, ",")
 
@@ -36,7 +37,7 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 			gossiper.RecentSearches.SearchesLock.Unlock()
 			return
 		}
-		//      otherwise, update recent search requests and TIME 0.5 seconds somehow (go routine which
+		//      otherwise, update recent search requests and TIME 0.5 seconds (go routine which
 		//      deletes the message from the recent search requests after 0.5 seconds?)
 		gossiper.RecentSearches.Searches[duplicateSignature] = true
 		go func() {
@@ -49,10 +50,10 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 
 		// 2) process the search request locally (and possibly send a SearchReply)
 		//   Check both _SharedFiles and _Downloades (gossiper memory) for keywords matches
-		keywordsMatches := make([]*core.SearchResult, 0) // TODO:: populate this []*SearchResult array
+		searchResults := performLocalFilenameSearch(gossiper, searchRequest.Keywords)
 		//   If any matches found, create and send a Search Reply (using next hop?)
-		if len(keywordsMatches) != 0 {
-			searchReply := &core.SearchReply{Origin: gossiper.Name, Destination: searchRequest.Origin, HopLimit: uint32(10), Results: keywordsMatches}
+		if len(searchResults) > 0 {
+			searchReply := &core.SearchReply{Origin: gossiper.Name, Destination: searchRequest.Origin, HopLimit: uint32(10), Results: searchResults}
 			forwardSearchReply(gossiper, searchReply)
 		}
 
@@ -167,7 +168,7 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 					currentMatches[res.FileName] = infoSoFar
 				} else {
 					// received search results for a new file (e.g. we don't have any info about it so far)
-					newMatch := &core.FileSearchMatch{FileName: res.FileName, ChunkCount: res.ChunkCount, LocationOfChunks: make(map[uint64]string)}
+					newMatch := &core.FileSearchMatch{FileName: res.FileName, ChunkCount: res.ChunkCount, LocationOfChunks: make(map[uint64]string), Metahash: res.MetafileHash}
 					for _, ch := range res.ChunkMap {
 						newMatch.LocationOfChunks[ch] = searchReply.Origin
 					}
@@ -183,6 +184,7 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			}
 			if fullMatchesCount >= constants.FullMatchesThreshold {
 				//    if so, print "SEARCH FINISHED"
+				helpers.PrintSearchFinished()
 				//    issue a download for the fully matched files
 				//      NOTE: do not specify destination - instead, use the internally
 				//      saved information about which node has which chunks
@@ -194,6 +196,12 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 	}
 
 }
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+//////////                   HELPERS                             //////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 
 func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
 
@@ -217,4 +225,27 @@ func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
 	packetBytes, err := protobuf.Encode(&packetToSend)
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)
+}
+
+func performLocalFilenameSearch(gossiper *core.Gossiper, keywords []string) []*core.SearchResult {
+	knownFiles := gossiper.GetAllKnownFiles()
+	searchResults := make([]*core.SearchResult, 0)
+
+	for _, kw := range keywords {
+		kw += ".*"
+		for _, f := range knownFiles.MetaStringToFileInfo {
+			fname := f.FileName
+			matched, _ := regexp.MatchString(kw, fname)
+			if matched {
+				chunkMap := make([]uint64, 0)
+				for idx, _ := range f.Metafile {
+					chunkMap = append(chunkMap, uint64(idx))
+				}
+				newResult := &core.SearchResult{FileName: fname, MetafileHash: f.MetaHash[:], ChunkCount: f.ChunksCount, ChunkMap: chunkMap}
+				searchResults = append(searchResults, newResult)
+			}
+		}
+	}
+
+	return searchResults
 }

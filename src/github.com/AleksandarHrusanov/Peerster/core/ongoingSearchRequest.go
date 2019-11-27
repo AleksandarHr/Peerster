@@ -7,26 +7,31 @@ import (
 type FileSearchMatch struct {
 	FileName   string
 	ChunkCount uint64
+	Metahash   []byte
 	// maps chunk index to peer where we found the chunk at
 	LocationOfChunks map[uint64]string
 }
 
 // A struct to hold information about the currently executed search request
 type SafeOngoingFileSearching struct {
-	SearchReplyChanel chan *SearchReply
-	IsOngoing         bool
-	Budget            uint64
-	Keywords          []string
+	SearchReplyChanel         chan *SearchReply
+	SearchDownloadReplyChanel chan *DataReply
+	IsOngoing                 bool
+	Budget                    uint64
+	Keywords                  []string
+	DownloadedFiles           map[string]*FileInformation
 	// maps from filename to FileSearchMatch struct
 	MatchesFound      map[string]*FileSearchMatch
 	SearchRequestLock sync.Mutex
 }
 
 func CreateSafeOngoingFileSearching() *SafeOngoingFileSearching {
-	ch := make(chan *SearchReply)
+	searchChanel := make(chan *SearchReply)
+	downloadChanel := make(chan *DataReply)
 	matches := make(map[string]*FileSearchMatch)
 
-	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: ch, MatchesFound: matches, IsOngoing: true}
+	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: searchChanel, SearchDownloadReplyChanel: downloadChanel,
+		MatchesFound: matches, IsOngoing: true, DownloadedFiles: make(map[string]*FileInformation)}
 
 	return fileSearch
 }

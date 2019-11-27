@@ -81,3 +81,17 @@ func PrintDownloadingChunk(fname string, downloadFrom string, idx uint32) {
 func PrintReconstructedFile(fname string) {
 	fmt.Printf("RECONSTRUCTED file %s\n", fname)
 }
+
+// ========================================================
+// ========================================================
+//						Homework 3 functions
+// ========================================================
+// ========================================================
+
+func PrintFileMatchFound(fname string, peer string, metahash string, chunks string) {
+	fmt.Printf("FOUND match %s at %s metafile=%s chunks=%s\n", fname, peer, metahash, chunks)
+}
+
+func PrintSearchFinished() {
+	fmt.Println("SEARCH FINISHED")
+}
