@@ -237,3 +237,22 @@ func buildChunkPath(folder string, hashValue []byte) string {
 	chunkPath, _ := filepath.Abs(folder + "/" + hashToString(convertSliceTo32Fixed(hashValue)))
 	return chunkPath
 }
+
+func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fname string, state *core.DownloadingState) {
+	// read the metafile and populate hashedChunks in the file
+	metafile := mapifyMetafile(reply.Data)
+	gossiper.DownloadingLock.Lock()
+	state.FileInfo.Metafile = metafile
+	state.MetafileDownloaded = true
+	gossiper.DownloadingLock.Unlock()
+
+	// write metafile to file system
+	// metafilePath := buildChunkPath(constants.DownloadedFilesChunksFolder, reply.HashValue)
+	// ioutil.WriteFile(metafilePath, reply.Data, constants.FileMode)
+}
+
+func getChunkHashByIndex(index uint64, metafileHash []byte) [constants.HashSize]byte {
+	start := int((index - 1)) * constants.HashSize
+	end := start + constants.HashSize
+	return convertSliceTo32Fixed(metafileHash[start:end])
+}

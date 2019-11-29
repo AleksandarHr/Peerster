@@ -18,20 +18,20 @@ type SafeOngoingFileSearching struct {
 	SearchDownloadReplyChanel chan *DataReply
 	IsOngoing                 bool
 	Budget                    uint64
-	Keywords                  []string
+	Keywords                  *string
 	DownloadedFiles           map[string]*FileInformation
 	// maps from filename to FileSearchMatch struct
 	MatchesFound      map[string]*FileSearchMatch
 	SearchRequestLock sync.Mutex
 }
 
-func CreateSafeOngoingFileSearching() *SafeOngoingFileSearching {
+func CreateSafeOngoingFileSearching(bdgt *uint64, keywords *string) *SafeOngoingFileSearching {
 	searchChanel := make(chan *SearchReply)
 	downloadChanel := make(chan *DataReply)
 	matches := make(map[string]*FileSearchMatch)
 
 	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: searchChanel, SearchDownloadReplyChanel: downloadChanel,
-		MatchesFound: matches, IsOngoing: true, DownloadedFiles: make(map[string]*FileInformation)}
+		Budget: *bdgt, Keywords: keywords, MatchesFound: matches, IsOngoing: true, DownloadedFiles: make(map[string]*FileInformation)}
 
 	return fileSearch
 }

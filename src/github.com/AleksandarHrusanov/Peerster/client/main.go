@@ -23,11 +23,11 @@ func main() {
 	localAddressAndPort := "127.0.0.1:" + *uIPortPtr
 
 	// Establish UDP connection and send the message
-	checkFlags(uIPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash)
+	checkFlags(uIPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash, keywords)
 	core.ClientConnectAndSend(localAddressAndPort, msgPtr, destPtr, fileToSharePtr, requestHash, keywords, budget)
 }
 
-func checkFlags(uiPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash *string) {
+func checkFlags(uiPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash, keywordsPtr *string) {
 
 	if strings.Compare(*uiPortPtr, "") == 0 {
 		log.Fatal("No UIPort specified.")
@@ -58,7 +58,12 @@ func checkFlags(uiPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash *string)
 		strings.Compare(*requestHash, "") == 0 &&
 		strings.Compare(*msgPtr, "") != 0)
 
-	if !(fileDownload || fileShare || sendingMessage) {
+	//
+	fileSearch := (strings.Compare(*keywordsPtr, "") != 0 &&
+		strings.Compare(*destPtr, "") == 0 &&
+		strings.Compare(*msgPtr, "") == 0)
+
+	if !(fileDownload || fileShare || sendingMessage || fileSearch) {
 		log.Fatal("Combination of flags is not allowed.")
 		os.Exit(1)
 	}

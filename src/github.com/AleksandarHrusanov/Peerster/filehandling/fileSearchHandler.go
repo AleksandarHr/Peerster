@@ -1,6 +1,7 @@
 package filehandling
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -14,7 +15,7 @@ import (
 // A function to handle a search request coming from the client of this peerster node
 func HandleClientSearchRequest(gossiper *core.Gossiper, clientSearchRequest *core.Message) {
 	// start a new search request - declare and initialize an SafeOngoingFileSearching variable
-	fileSearch := core.CreateSafeOngoingFileSearching()
+	fileSearch := core.CreateSafeOngoingFileSearching(clientSearchRequest.Budget, clientSearchRequest.Keywords)
 
 	// save it in the gossipere
 	gossiper.OngoingFileSearch = fileSearch
@@ -26,7 +27,7 @@ func HandleClientSearchRequest(gossiper *core.Gossiper, clientSearchRequest *cor
 func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.SearchRequest) {
 	// If the origin of the search request is not the this peer node itself
 	// 1) Detect and discard duplicate requests (e.g. same Origin and same Keywords) in the last 0.5 seconds
-	if strings.Compare(searchRequest.Origin, gossiper.Name) == 0 {
+	if strings.Compare(searchRequest.Origin, gossiper.Name) != 0 {
 		searchSignature := append([]string{searchRequest.Origin}, searchRequest.Keywords...)
 		duplicateSignature := strings.Join(searchSignature, ",")
 
@@ -63,35 +64,44 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 			//    4.1) If remaining budget is <= 0, search failed, do nothing, return
 			return
 		}
-	}
-	//    5) If the search request was issued by the gossiper, perform ring-expand - redistribute the remainig
-	//         budget as evenly as possible to up to B neighboring nodes
-	//         every peer gets a search request with budget = integer part of (budget / #neighbours)
-	//         and then iteratively add 1 to the budget of the first R neighbors (where R = budget % # neighbors)
-	gossiper.PeersLock.Lock()
-	peers := gossiper.KnownPeers
-	gossiper.PeersLock.Unlock()
-	peersCount := uint64(len(peers))
+	} else {
+		//    5) If the search request was issued by the gossiper, perform ring-expand - redistribute the remainig
+		//         budget as evenly as possible to up to B neighboring nodes
+		//         every peer gets a search request with budget = integer part of (budget / #neighbours)
+		//         and then iteratively add 1 to the budget of the first R neighbors (where R = budget % # neighbors)
+		gossiper.PeersLock.Lock()
+		peers := gossiper.KnownPeers
+		gossiper.PeersLock.Unlock()
+		peersCount := uint64(len(peers))
 
-	baseBudget := searchRequest.Budget / peersCount
-	extraBudget := searchRequest.Budget % peersCount
-	idx := uint64(0)
-	for ; idx < extraBudget; idx++ {
-		tempBudget := baseBudget + 1
-		// SEND basebudget + 1 to extraBudget number of peers
-		newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
-		packetToSend := &core.GossipPacket{SearchRequest: newSearchRequest}
-		packetBytes, err := protobuf.Encode(&packetToSend)
-		helpers.HandleErrorFatal(err)
-		core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
-	}
-	for ; idx < peersCount; idx++ {
-		// send basebudget to the rest of the peers
-		newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
-		packetToSend := &core.GossipPacket{SearchRequest: newSearchRequest}
-		packetBytes, err := protobuf.Encode(&packetToSend)
-		helpers.HandleErrorFatal(err)
-		core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+		if peersCount != 0 {
+			baseBudget := searchRequest.Budget / peersCount
+			extraBudget := searchRequest.Budget % peersCount
+
+			idx := uint64(0)
+			for ; idx < extraBudget; idx++ {
+				if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
+					tempBudget := baseBudget + 1
+					// SEND basebudget + 1 to extraBudget number of peers
+					newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
+
+					packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
+					packetBytes, err := protobuf.Encode(&packetToSend)
+					helpers.HandleErrorFatal(err)
+					core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+				}
+			}
+			for ; idx < peersCount; idx++ {
+				// send basebudget to the rest of the peers
+				if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
+					newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
+					packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
+					packetBytes, err := protobuf.Encode(&packetToSend)
+					helpers.HandleErrorFatal(err)
+					core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+				}
+			}
+		}
 	}
 }
 
@@ -139,7 +149,7 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			//    otherwise, double the budget and send another request
 			searchBudget *= 2
 			gossiper.OngoingFileSearch.Budget = searchBudget
-			newSearchRequest := &core.SearchRequest{Origin: gossiper.Name, Budget: searchBudget, Keywords: searchKeywords}
+			newSearchRequest := &core.SearchRequest{Origin: gossiper.Name, Budget: searchBudget, Keywords: strings.Split(*searchKeywords, ",")}
 			HandlePeerSearchRequest(gossiper, newSearchRequest)
 
 			//      restart the ticker
@@ -166,6 +176,7 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 					}
 					// save updated information
 					currentMatches[res.FileName] = infoSoFar
+					gossiper.OngoingFileSearch.MatchesFound = currentMatches
 				} else {
 					// received search results for a new file (e.g. we don't have any info about it so far)
 					newMatch := &core.FileSearchMatch{FileName: res.FileName, ChunkCount: res.ChunkCount, LocationOfChunks: make(map[uint64]string), Metahash: res.MetafileHash}
@@ -177,9 +188,12 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			}
 			// at this point, check if we have reached two full matches
 			fullMatchesCount := 0
+			matchesSlice := make([]*core.FileSearchMatch, 0)
 			for _, searchMatch := range gossiper.OngoingFileSearch.MatchesFound {
 				if searchMatch.ChunkCount == uint64(len(searchMatch.LocationOfChunks)) {
 					fullMatchesCount++
+					fmt.Println("we have a full match")
+					matchesSlice = append(matchesSlice, searchMatch)
 				}
 			}
 			if fullMatchesCount >= constants.FullMatchesThreshold {
@@ -191,6 +205,8 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 				//      From the metahash in the search result, reconstruct the metafile bytes
 				//      and read the corresponding 32-bit regions, encode them to strings and issue
 				//      separate 'chunk download requests to peers'.
+				go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
+				return
 			}
 		}
 	}
@@ -221,7 +237,7 @@ func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
 	// Decrement the HopLimit right before forwarding the packet
 	msg.HopLimit--
 	// Encode and send packet
-	packetToSend := &core.GossipPacket{SearchReply: msg}
+	packetToSend := core.GossipPacket{SearchReply: msg}
 	packetBytes, err := protobuf.Encode(&packetToSend)
 	helpers.HandleErrorFatal(err)
 	core.ConnectAndSend(forwardingAddress, gossiper.Conn, packetBytes)

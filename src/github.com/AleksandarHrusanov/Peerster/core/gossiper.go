@@ -115,7 +115,6 @@ func NewGossiper(address string, name string,
 		MetaStringToFileInfo: make(map[string]*FileInformation),
 		AllChunks:            make(map[string][]byte), MetaHashes: make(map[string][]byte)}
 	privateMessages := &SafePrivateMessages{Messages: make(map[string][]string)}
-	fileSearch := CreateSafeOngoingFileSearching()
 	recentSearches := &SafeRecentFileSearches{Searches: make(map[string]bool)}
 
 	return &Gossiper{
@@ -134,7 +133,6 @@ func NewGossiper(address string, name string,
 		PrivateMessages:    privateMessages,
 		FilesAndMetahashes: filesAndMetahashes,
 		DownloadingStates:  make(map[string][]*DownloadingState),
-		OngoingFileSearch:  fileSearch,
 		RecentSearches:     recentSearches,
 	}
 }
