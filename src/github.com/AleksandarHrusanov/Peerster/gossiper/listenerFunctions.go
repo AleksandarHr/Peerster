@@ -1,7 +1,6 @@
 package gossiper
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -75,10 +74,8 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				// Handle incoming data reply messages from other peers
 				filehandling.HandlePeerDataReply(gossiper, gossipPacket.DataReply)
 			} else if gossipPacket.SearchRequest != nil {
-				fmt.Println("search request")
 				filehandling.HandlePeerSearchRequest(gossiper, gossipPacket.SearchRequest)
 			} else if gossipPacket.SearchReply != nil {
-				fmt.Println("search reply")
 				filehandling.HandlePeerSearchReply(gossiper, gossipPacket.SearchReply)
 			} else if gossipPacket.Private != nil {
 				// Handle incoming private message from another peer

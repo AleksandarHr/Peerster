@@ -77,6 +77,12 @@ func PrintDownloadingChunk(fname string, downloadFrom string, idx uint32) {
 	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, startFromOne, downloadFrom)
 }
 
+// PrintDownloadingChunk print to console
+func PrintSearchDownloadingChunk(fname string, downloadFrom string, idx uint32) {
+	startFromOne := idx
+	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, startFromOne, downloadFrom)
+}
+
 // PrintReconstructedFile print to console
 func PrintReconstructedFile(fname string) {
 	fmt.Printf("RECONSTRUCTED file %s\n", fname)

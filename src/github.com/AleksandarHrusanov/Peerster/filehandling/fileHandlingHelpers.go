@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -200,7 +199,6 @@ func retrieveRequestedHashFromGossiperMemory(gossiper *core.Gossiper, requestedH
 
 	hashString := hashToString(requestedHash)
 	if hashBytes, ok := metahashes[hashString]; ok {
-		fmt.Println("Retrieving a metafile")
 		return hashBytes[:]
 	}
 
@@ -249,10 +247,4 @@ func handleReceivedMetafile(gossiper *core.Gossiper, reply *core.DataReply, fnam
 	// write metafile to file system
 	// metafilePath := buildChunkPath(constants.DownloadedFilesChunksFolder, reply.HashValue)
 	// ioutil.WriteFile(metafilePath, reply.Data, constants.FileMode)
-}
-
-func getChunkHashByIndex(index uint64, metafileHash []byte) [constants.HashSize]byte {
-	start := int((index - 1)) * constants.HashSize
-	end := start + constants.HashSize
-	return convertSliceTo32Fixed(metafileHash[start:end])
 }

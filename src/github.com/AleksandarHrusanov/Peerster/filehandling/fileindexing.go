@@ -69,6 +69,7 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 
 	metahash := computeSha256(appendedMetaFile)
 	metahashString := hashToString(metahash)
+	fileInfo.MetaHash = metahash
 	gossiper.FilesAndMetahashes.FilesLock.Lock()
 	gossiper.FilesAndMetahashes.FileNamesToMetahashesMap[fname] = metahashString
 	gossiper.FilesAndMetahashes.MetaStringToFileInfo[metahashString] = fileInfo

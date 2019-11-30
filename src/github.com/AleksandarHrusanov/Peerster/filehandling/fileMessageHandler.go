@@ -20,9 +20,10 @@ func HandlePeerDataReply(gossiper *core.Gossiper, dataReply *core.DataReply) {
 		gossiper.OngoingFileSearch.SearchRequestLock.Lock()
 		// if there is a file search currently happening, this data reply might be for it,
 		// so send it to the chanel for handling
-		if gossiper.OngoingFileSearch.IsOngoing {
-			gossiper.OngoingFileSearch.SearchDownloadReplyChanel <- dataReply
-		}
+		// if gossiper.OngoingFileSearch.IsOngoing {
+		// fmt.Println("Sending the data reply to the search download chanel!!")
+		gossiper.OngoingFileSearch.SearchDownloadReplyChanel <- dataReply
+		// }
 		gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
 
 		gossiper.DownloadingLock.Lock()
