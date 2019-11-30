@@ -96,7 +96,7 @@ func PrintFileMatchFound(fname string, peer string, metahash string, chunks []ui
 
 	chs := []string{}
 	for i := range chunks {
-		text := strconv.Itoa(int(chunks[i]))
+		text := strconv.Itoa(int(chunks[i] + 1))
 		chs = append(chs, text)
 	}
 	res := strings.Join(chs, ",")

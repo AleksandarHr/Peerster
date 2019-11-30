@@ -1,7 +1,6 @@
 package filehandling
 
 import (
-	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -31,18 +30,17 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 // TODO: Break this functoin into shorter functions (e.g 'handleReceivedMetafile')
 func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.FileSearchMatch) {
 	downloadedFilesCount := 0
-
 	for _, match := range fileMatches {
 		fname := match.FileName
 		fInfo := &core.FileInformation{FileName: fname, ChunksMap: make(map[string][]byte)}
 		gossiper.OngoingFileSearch.SearchRequestLock.Lock()
-		if !gossiper.OngoingFileSearch.IsOngoing {
-			// Search is still ongoing, do not start downloading yet
-			// return?
-			fmt.Println("no ongoing file search, returning")
-			gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
-			return
-		}
+		// if !gossiper.OngoingFileSearch.IsOngoing {
+		// Search is still ongoing, do not start downloading yet
+		// return
+		// fmt.Println("no ongoing file search, returning")
+		// gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
+		// return
+		// }
 
 		ch := gossiper.OngoingFileSearch.SearchDownloadReplyChanel
 		gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
