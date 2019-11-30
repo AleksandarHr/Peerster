@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"encoding/hex"
 
 	"github.com/AleksandarHrusanov/Peerster/constants"
 	"github.com/AleksandarHrusanov/Peerster/core"
@@ -57,14 +58,14 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 			searchReply := &core.SearchReply{Origin: gossiper.Name, Destination: searchRequest.Origin, HopLimit: uint32(10), Results: searchResults}
 			forwardSearchReply(gossiper, searchReply)
 		}
-
+	}
 		// 4) subtract 1 from the request's budget
+		fmt.Printf("Original request budget = %d\n", searchRequest.Budget)
 		searchRequest.Budget--
 		if searchRequest.Budget <= 0 {
 			//    4.1) If remaining budget is <= 0, search failed, do nothing, return
 			return
 		}
-	} else {
 		//    5) If the search request was issued by the gossiper, perform ring-expand - redistribute the remainig
 		//         budget as evenly as possible to up to B neighboring nodes
 		//         every peer gets a search request with budget = integer part of (budget / #neighbours)
@@ -73,36 +74,54 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 		peers := gossiper.KnownPeers
 		gossiper.PeersLock.Unlock()
 		peersCount := uint64(len(peers))
+		fmt.Printf("Known peers = %d\n", peersCount)
 
 		if peersCount != 0 {
-			baseBudget := searchRequest.Budget / peersCount
-			extraBudget := searchRequest.Budget % peersCount
-
-			idx := uint64(0)
-			for ; idx < extraBudget; idx++ {
-				if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
-					tempBudget := baseBudget + 1
-					// SEND basebudget + 1 to extraBudget number of peers
-					newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
-
-					packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
-					packetBytes, err := protobuf.Encode(&packetToSend)
-					helpers.HandleErrorFatal(err)
-					core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
-				}
+		baseBdg := searchRequest.Budget / peersCount
+		extraBdg := searchRequest.Budget % peersCount
+		for _, peer := range peers {
+			newBdg := baseBdg
+			if extraBdg > 0 {
+				newBdg++
+				extraBdg--
 			}
-			for ; idx < peersCount; idx++ {
-				// send basebudget to the rest of the peers
-				if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
-					newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
-					packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
-					packetBytes, err := protobuf.Encode(&packetToSend)
-					helpers.HandleErrorFatal(err)
-					core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
-				}
-			}
+			fmt.Printf("forwarding search request with budget = %d\n", newBdg)
+			newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(newBdg), Keywords: searchRequest.Keywords}
+			packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
+			packetBytes, err := protobuf.Encode(&packetToSend)
+			helpers.HandleErrorFatal(err)
+			core.ConnectAndSend(peer, gossiper.Conn, packetBytes)
 		}
 	}
+
+
+		// if peersCount != 0 {
+		// 	baseBudget := searchRequest.Budget / peersCount
+		// 	extraBudget := searchRequest.Budget % peersCount
+		// 	fmt.Printf("Basebudget == %d :: extrabudget == %d\n", baseBudget, extraBudget)
+		// 	idx := uint64(0)
+		// 	for ; idx < extraBudget; idx++ {
+		// 		if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
+		// 			tempBudget := baseBudget + 1
+		// 			// SEND basebudget + 1 to extraBudget number of peers
+		// 			newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
+		// 			packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
+		// 			packetBytes, err := protobuf.Encode(&packetToSend)
+		// 			helpers.HandleErrorFatal(err)
+		// 			core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+		// 		}
+		// 	}
+		// 	for ; idx < peersCount; idx++ {
+		// 		// send basebudget to the rest of the peers
+		// 		if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
+		// 			newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
+		// 			packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
+		// 			packetBytes, err := protobuf.Encode(&packetToSend)
+		// 			helpers.HandleErrorFatal(err)
+		// 			core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
+		// 		}
+		// 	}
+		// }
 }
 
 // A function to handle a search reply coming from another peerster node
@@ -128,9 +147,18 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 	// if budget is not specified, set it to 2 (default starting budget)
 	fileSearch := gossiper.OngoingFileSearch
 	searchReplyChanel := fileSearch.SearchReplyChanel
+	defaultBudget := false
+	if fileSearch.Budget == 0 {
+		defaultBudget = true
+		fileSearch.Budget = uint64(2)
+	}
+
 	searchBudget := fileSearch.Budget
 	searchKeywords := fileSearch.Keywords
 	ticker := time.NewTicker(1 * time.Second)
+
+	newSearchRequest := &core.SearchRequest{Origin: gossiper.Name, Budget: searchBudget, Keywords: strings.Split(*searchKeywords, ",")}
+	HandlePeerSearchRequest(gossiper, newSearchRequest)
 
 	for {
 		select {
@@ -140,21 +168,24 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			//   matches (e.g. 2 for the tests)
 
 			// check if budget exceeded maximum
-			if searchBudget > constants.RingSearchBudgetLimit {
-				//    if so, end the search, return
-				fmt.Println("Reached budget limit, end search")
-				gossiper.OngoingFileSearch.IsOngoing = false
-				return
+			if defaultBudget {
+				fmt.Printf("Budget == %d\n", searchBudget)
+				if searchBudget > constants.RingSearchBudgetLimit {
+					//    if so, end the search, return
+					fmt.Println("Reached budget limit, end search")
+					gossiper.OngoingFileSearch.IsOngoing = false
+					return
+				}
+
+				//    otherwise, double the budget and send another request
+				searchBudget *= 2
+				gossiper.OngoingFileSearch.Budget = searchBudget
+				newSearchRequest := &core.SearchRequest{Origin: gossiper.Name, Budget: searchBudget, Keywords: strings.Split(*searchKeywords, ",")}
+				HandlePeerSearchRequest(gossiper, newSearchRequest)
+
+				//      restart the ticker
+				ticker = time.NewTicker(1 * time.Second)
 			}
-
-			//    otherwise, double the budget and send another request
-			searchBudget *= 2
-			gossiper.OngoingFileSearch.Budget = searchBudget
-			newSearchRequest := &core.SearchRequest{Origin: gossiper.Name, Budget: searchBudget, Keywords: strings.Split(*searchKeywords, ",")}
-			HandlePeerSearchRequest(gossiper, newSearchRequest)
-
-			//      restart the ticker
-			ticker = time.NewTicker(1 * time.Second)
 
 		case searchReply := <-searchReplyChanel:
 			// we received a search reply, so let's process it
@@ -162,6 +193,7 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			searchResults := searchReply.Results
 			currentMatches := gossiper.OngoingFileSearch.MatchesFound
 			for _, res := range searchResults {
+				helpers.PrintFileMatchFound(res.FileName, searchReply.Origin, hex.EncodeToString(res.MetafileHash), res.ChunkMap)
 				//    for each, store information about the specified chunks
 				if _, found := currentMatches[res.FileName]; found {
 					// we have information about some chunks of this file
@@ -199,16 +231,17 @@ func initiateFileSearching(gossiper *core.Gossiper) {
 			if fullMatchesCount >= constants.FullMatchesThreshold {
 				//    if so, print "SEARCH FINISHED"
 				helpers.PrintSearchFinished()
+				//    issue a download for the fully matched files
+				//      NOTE: do not specify destination - instead, use the internally
+				//      saved information about which node has which chunks
+				//      From the metahash in the search result, reconstruct the metafile bytes
+				//      and read the corresponding 32-bit regions, encode them to strings and issue
+				//      separate 'chunk download requests to peers'.
+				go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
+				return
 			}
+			ticker = time.NewTicker(1 * time.Second)
 
-			//    issue a download for the fully matched files
-			//      NOTE: do not specify destination - instead, use the internally
-			//      saved information about which node has which chunks
-			//      From the metahash in the search result, reconstruct the metafile bytes
-			//      and read the corresponding 32-bit regions, encode them to strings and issue
-			//      separate 'chunk download requests to peers'.
-			go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
-			return
 		}
 	}
 

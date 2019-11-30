@@ -82,7 +82,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 				handlePrivateMessage(gossiper, gossipPacket.Private)
 			} else if gossipPacket.Rumor != nil {
 				// Print RumorFromPeer output
-				helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor.Origin, fromAddr, gossipPacket.Rumor.ID, gossipPacket.Rumor.Text, knownPeers)
+				// helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor.Origin, fromAddr, gossipPacket.Rumor.ID, gossipPacket.Rumor.Text, knownPeers)
 
 				// Check if the Rumor or its Origin is known
 				rumorIsKnown, originIsKnown, wantedID := core.IsRumorKnown(gossiper.Want, gossipPacket.Rumor)

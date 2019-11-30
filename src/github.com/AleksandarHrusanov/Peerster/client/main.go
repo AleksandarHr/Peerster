@@ -18,7 +18,7 @@ func main() {
 	fileToSharePtr := flag.String("file", "", "file to be indexed by the gossiper")
 	requestHash := flag.String("request", "", "string representation of the metahash of the file to request")
 	keywords := flag.String("keywords", "", "comma separated keywords used for file searching by name")
-	budget := flag.Uint64("budget", uint64(2), "starting budget used for ring-expand search")
+	budget := flag.Uint64("budget", uint64(0), "starting budget used for ring-expand search")
 	flag.Parse()
 	localAddressAndPort := "127.0.0.1:" + *uIPortPtr
 

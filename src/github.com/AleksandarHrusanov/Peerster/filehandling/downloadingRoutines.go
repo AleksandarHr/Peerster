@@ -46,7 +46,6 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 
 		ch := gossiper.OngoingFileSearch.SearchDownloadReplyChanel
 		gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
-		// currentMetafile := make(map[uint32][constants.HashSize]byte)
 
 		// create a ticker
 		ticker := time.NewTicker(5 * time.Second)

@@ -2,6 +2,9 @@ package helpers
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 // PrintOutputSimpleMessageFromClient print on the console
@@ -88,8 +91,16 @@ func PrintReconstructedFile(fname string) {
 // ========================================================
 // ========================================================
 
-func PrintFileMatchFound(fname string, peer string, metahash string, chunks string) {
-	fmt.Printf("FOUND match %s at %s metafile=%s chunks=%s\n", fname, peer, metahash, chunks)
+func PrintFileMatchFound(fname string, peer string, metahash string, chunks []uint64) {
+	sort.Slice(chunks, func(i, j int) bool { return chunks[i] < chunks[j] })
+
+	chs := []string{}
+	for i := range chunks {
+		text := strconv.Itoa(int(chunks[i]))
+		chs = append(chs, text)
+	}
+	res := strings.Join(chs, ",")
+	fmt.Printf("FOUND match %s at %s metafile=%s chunks=%s\n", fname, peer, metahash, res)
 }
 
 func PrintSearchFinished() {
