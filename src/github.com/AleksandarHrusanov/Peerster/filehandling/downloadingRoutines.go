@@ -1,7 +1,6 @@
 package filehandling
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -33,7 +32,6 @@ func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname
 func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.FileSearchMatch) {
 	downloadedFilesCount := 0
 
-	fmt.Println("Starting a filesearch download")
 	for _, match := range fileMatches {
 		fname := match.FileName
 		fInfo := &core.FileInformation{FileName: fname, ChunksMap: make(map[string][]byte)}
@@ -52,13 +50,13 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 
 		// create a ticker
 		ticker := time.NewTicker(5 * time.Second)
+		haveMetaFile := false
 		nextIdx := uint64(0)
 		// in an infinite for-loop
 
 		rand.Seed(time.Now().UnixNano())
 		randomPeer := match.LocationOfChunks[uint64(rand.Intn(len(match.LocationOfChunks)))]
 		request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
-		fmt.Println("Requesting metafile hash = " + hex.EncodeToString(match.Metahash))
 		forwardDataRequest(gossiper, request)
 
 		for {
@@ -68,13 +66,13 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 			// if ticker timeout
 			case <-ticker.C:
 				// resend data request
-				if nextIdx == 0 {
+				if !haveMetaFile {
 					request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
 					forwardDataRequest(gossiper, request)
 				} else {
 					downloadFrom := match.LocationOfChunks[nextIdx]
 					chunkHash := fInfo.Metafile[uint32(nextIdx)]
-					helpers.PrintSearchDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
+					helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 					resendDataRequest(gossiper, downloadFrom, chunkHash)
 				}
 			case reply := <-ch:
@@ -86,7 +84,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 					} else {
 						// sanity check - make sure it is a reply to my last request
 						var lastChunk [constants.HashSize]byte
-						if nextIdx == 0 {
+						if !haveMetaFile {
 							lastChunk = convertSliceTo32Fixed(match.Metahash)
 						} else {
 							lastChunk = fInfo.Metafile[uint32(nextIdx)]
@@ -96,25 +94,26 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 						}
 						if !replyIntegrityCheck(reply) {
 							// received data reply with mismatching hash and data; resend request
-							if nextIdx == 0 {
+							if !haveMetaFile {
 								resendDataRequest(gossiper, randomPeer, convertSliceTo32Fixed(match.Metahash))
 							} else {
 								downloadFrom := match.LocationOfChunks[nextIdx]
-								helpers.PrintSearchDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
+								helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 								chunkHash := fInfo.Metafile[uint32(nextIdx)]
 								resendDataRequest(gossiper, downloadFrom, chunkHash)
 							}
 						} else {
-							// the datareply SHOULD be containing a file data chunk
-							// update FileInfo struct
 							chunkHash := convertSliceTo32Fixed(reply.HashValue)
 							chunkHashString := hashToString(chunkHash)
-							if nextIdx == 0 {
+							if !haveMetaFile {
 								fInfo.Metafile = mapifyMetafile(reply.Data)
+								haveMetaFile = true
 							} else {
+								// the datareply SHOULD be containing a file data chunk
+								// update FileInfo struct
 								fInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
+								nextIdx++
 							}
-							nextIdx++
 
 							// save chunk to a new file
 							// chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
@@ -133,7 +132,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.
 							nextHashToRequest := fInfo.Metafile[uint32(nextIdx)]
 							downloadFrom := match.LocationOfChunks[nextIdx]
 							request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
-							helpers.PrintSearchDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
+							helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 							forwardDataRequest(gossiper, request)
 						}
 					}

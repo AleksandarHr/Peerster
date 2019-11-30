@@ -156,9 +156,11 @@ func mapifyMetafile(mfile []byte) map[uint32][constants.HashSize]byte {
 
 	for i := 0; i < len(mfile); i += constants.HashSize {
 		if len(mfile) < i+constants.HashSize {
-			metafile[uint32(i/constants.HashSize)] = convertSliceTo32Fixed(mfile[i:len(mfile)])
+			bytes := convertSliceTo32Fixed(mfile[i:len(mfile)])
+			metafile[uint32(i/constants.HashSize)] = bytes
 		} else {
-			metafile[uint32(i/constants.HashSize)] = convertSliceTo32Fixed(mfile[i : i+constants.HashSize])
+			bytes := convertSliceTo32Fixed(mfile[i : i+constants.HashSize])
+			metafile[uint32(i/constants.HashSize)] = bytes
 		}
 	}
 	return metafile
@@ -196,7 +198,6 @@ func retrieveRequestedHashFromFileSystem(requestedHash [constants.HashSize]byte)
 func retrieveRequestedHashFromGossiperMemory(gossiper *core.Gossiper, requestedHash [constants.HashSize]byte) []byte {
 	allChunks := gossiper.FilesAndMetahashes.AllChunks
 	metahashes := gossiper.FilesAndMetahashes.MetaHashes
-
 	hashString := hashToString(requestedHash)
 	if hashBytes, ok := metahashes[hashString]; ok {
 		return hashBytes[:]
