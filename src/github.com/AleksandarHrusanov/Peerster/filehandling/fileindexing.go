@@ -52,7 +52,7 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 		// 	os.Exit(1)
 		// }
 
-		metaFile[uint32(i)] = hash
+		metaFile[uint32(i+1)] = hash
 		fileInfo.ChunksMap[newName] = buffer
 		gossiper.FilesAndMetahashes.FilesLock.Lock()
 		gossiper.FilesAndMetahashes.AllChunks[newName] = buffer
@@ -63,7 +63,7 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	fileInfo.Metafile = metaFile
 	appendedMetaFile := make([]byte, 0, constants.HashSize*len(metaFile))
 	for i := uint64(0); i < totalChunksCount; i++ {
-		hs := metaFile[uint32(i)]
+		hs := metaFile[uint32(i+1)]
 		appendedMetaFile = append(appendedMetaFile, hs[:]...)
 	}
 

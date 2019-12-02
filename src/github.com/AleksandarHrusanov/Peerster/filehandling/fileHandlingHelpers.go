@@ -157,10 +157,10 @@ func mapifyMetafile(mfile []byte) map[uint32][constants.HashSize]byte {
 	for i := 0; i < len(mfile); i += constants.HashSize {
 		if len(mfile) < i+constants.HashSize {
 			bytes := convertSliceTo32Fixed(mfile[i:len(mfile)])
-			metafile[uint32(i/constants.HashSize)] = bytes
+			metafile[uint32(i/constants.HashSize)+1] = bytes
 		} else {
 			bytes := convertSliceTo32Fixed(mfile[i : i+constants.HashSize])
-			metafile[uint32(i/constants.HashSize)] = bytes
+			metafile[uint32(i/constants.HashSize)+1] = bytes
 		}
 	}
 	return metafile

@@ -76,7 +76,7 @@ func PrintDownloadingMetafile(fname string, downloadFrom string) {
 
 // PrintDownloadingChunk print to console
 func PrintDownloadingChunk(fname string, downloadFrom string, idx uint32) {
-	startFromOne := idx + 1
+	startFromOne := idx
 	fmt.Printf("DOWNLOADING %s chunk %d from %s\n", fname, startFromOne, downloadFrom)
 }
 
@@ -96,7 +96,7 @@ func PrintFileMatchFound(fname string, peer string, metahash string, chunks []ui
 
 	chs := []string{}
 	for i := range chunks {
-		text := strconv.Itoa(int(chunks[i] + 1))
+		text := strconv.Itoa(int(chunks[i]))
 		chs = append(chs, text)
 	}
 	res := strings.Join(chs, ",")
