@@ -187,24 +187,14 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 			}
 			// at this point, check if we have reached two full matches
 			fullMatchesCount := 0
-			matchesSlice := make([]*core.FileSearchMatch, 0)
 			for _, searchMatch := range gossiper.OngoingFileSearch.MatchesFound {
 				if searchMatch.ChunkCount == uint64(len(searchMatch.LocationOfChunks)) {
 					fullMatchesCount++
-					matchesSlice = append(matchesSlice, searchMatch)
 				}
 			}
 			if fullMatchesCount >= constants.FullMatchesThreshold {
 				//    if so, print "SEARCH FINISHED"
 				helpers.PrintSearchFinished()
-				//    issue a download for the fully matched files
-				//      NOTE: do not specify destination - instead, use the internally
-				//      saved information about which node has which chunks
-				//      From the metahash in the search result, reconstruct the metafile bytes
-				//      and read the corresponding 32-bit regions, encode them to strings and issue
-				//      separate 'chunk download requests to peers'.
-
-				// go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
 				return
 			}
 			ticker = time.NewTicker(1 * time.Second)
