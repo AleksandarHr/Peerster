@@ -306,6 +306,8 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 				filehandling.HandleClientDownloadRequest(gossiper, &message)
 			} else if isClientRequestingFileSearch(&message) {
 				filehandling.HandleClientSearchRequest(gossiper, &message)
+			} else if isClientRequestingImplicitDownload(&message) {
+				filehandling.HandleClientImplicitDownloadRequest(gossiper, &message)
 			} else {
 				if isClientMessagePrivate(&message) {
 					// Handle private messages from client
@@ -348,7 +350,9 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 
 // true if the client did not specify a destination - only wants to index and divide file locally
 func isClientFileIndexing(clientMsg *core.Message) bool {
-	return (strings.Compare(*(clientMsg.File), "") != 0 && (strings.Compare(*(clientMsg.Destination), "") == 0))
+	return (strings.Compare(*(clientMsg.File), "") != 0 &&
+		(strings.Compare(*(clientMsg.Destination), "") == 0) &&
+		len(*clientMsg.Request) == 0)
 }
 
 func isClientRequestingFileSearch(clientMsg *core.Message) bool {
@@ -359,5 +363,12 @@ func isClientRequestingFileSearch(clientMsg *core.Message) bool {
 func isClientRequestingDownload(clientMsg *core.Message) bool {
 	return (strings.Compare(*(clientMsg.File), "") != 0 &&
 		(strings.Compare(*(clientMsg.Destination), "") != 0) &&
+		(len(*clientMsg.Request) != 0))
+}
+
+// true if the client did not specify a destination - only wants to index and divide file locally
+func isClientRequestingImplicitDownload(clientMsg *core.Message) bool {
+	return (strings.Compare(*(clientMsg.File), "") != 0 &&
+		(strings.Compare(*(clientMsg.Destination), "") == 0) &&
 		(len(*clientMsg.Request) != 0))
 }

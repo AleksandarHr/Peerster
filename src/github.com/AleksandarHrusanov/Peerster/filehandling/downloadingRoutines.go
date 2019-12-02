@@ -1,6 +1,7 @@
 package filehandling
 
 import (
+	"bytes"
 	"math/rand"
 	"strings"
 	"time"
@@ -10,142 +11,156 @@ import (
 	"github.com/AleksandarHrusanov/Peerster/helpers"
 )
 
-func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname string, state *core.DownloadingState, fileMatches []*core.FileSearchMatch) {
+func HandleClientImplicitDownloadRequest(gossiper *core.Gossiper, clientSearchRequest *core.Message) {
+	var match *core.FileSearchMatch
+	for _, searchMatch := range gossiper.OngoingFileSearch.MatchesFound {
+		if searchMatch.ChunkCount == uint64(len(searchMatch.LocationOfChunks)) {
+			if bytes.Compare(searchMatch.Metahash, *clientSearchRequest.Request) == 0 {
+				match = searchMatch
+				break
+			}
+		}
+	}
+
+	go initiateFileDownloading(gossiper, "", "", nil, match)
+}
+
+func initiateFileDownloading(gossiper *core.Gossiper, downloadFrom string, fname string, state *core.DownloadingState, fileMatch *core.FileSearchMatch) {
 
 	if gossiper == nil {
 		return
 	}
 
-	if fileMatches == nil {
+	if fileMatch == nil {
 		// we are issuing a regular file download
 		if strings.Compare(downloadFrom, "") != 0 && strings.Compare(fname, "") != 0 && state != nil {
 			initiateRegularDownloading(gossiper, downloadFrom, fname, state)
 		}
 	} else {
 		// we are issuing a file download as a result from search request
-		initiateFilesearchDownloading(gossiper, fileMatches)
+		initiateFilesearchDownloading(gossiper, fileMatch)
 	}
 }
 
 // TODO: Break this functoin into shorter functions (e.g 'handleReceivedMetafile')
-func initiateFilesearchDownloading(gossiper *core.Gossiper, fileMatches []*core.FileSearchMatch) {
-	downloadedFilesCount := 0
-	for _, match := range fileMatches {
-		fname := match.FileName
-		fInfo := &core.FileInformation{FileName: fname, ChunksMap: make(map[string][]byte)}
-		gossiper.OngoingFileSearch.SearchRequestLock.Lock()
-		// if !gossiper.OngoingFileSearch.IsOngoing {
-		// Search is still ongoing, do not start downloading yet
-		// return
-		// fmt.Println("no ongoing file search, returning")
-		// gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
-		// return
-		// }
+func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSearchMatch) {
+	// downloadedFilesCount := 0
+	// for _, match := range fileMatches {
+	fname := match.FileName
+	fInfo := &core.FileInformation{FileName: fname, ChunksMap: make(map[string][]byte)}
+	gossiper.OngoingFileSearch.SearchRequestLock.Lock()
+	// if !gossiper.OngoingFileSearch.IsOngoing {
+	// Search is still ongoing, do not start downloading yet
+	// return
+	// fmt.Println("no ongoing file search, returning")
+	// gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
+	// return
+	// }
 
-		ch := gossiper.OngoingFileSearch.SearchDownloadReplyChanel
-		gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
+	ch := gossiper.OngoingFileSearch.SearchDownloadReplyChanel
+	gossiper.OngoingFileSearch.SearchRequestLock.Unlock()
 
-		// create a ticker
-		ticker := time.NewTicker(5 * time.Second)
-		haveMetaFile := false
-		nextIdx := uint64(0)
-		// in an infinite for-loop
+	// create a ticker
+	ticker := time.NewTicker(5 * time.Second)
+	haveMetaFile := false
+	nextIdx := uint64(0)
+	// in an infinite for-loop
 
-		rand.Seed(time.Now().UnixNano())
-		randomPeer := match.LocationOfChunks[uint64(rand.Intn(len(match.LocationOfChunks)))]
-		request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
-		forwardDataRequest(gossiper, request)
+	rand.Seed(time.Now().UnixNano())
+	randomPeer := match.LocationOfChunks[uint64(rand.Intn(len(match.LocationOfChunks)))]
+	request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
+	forwardDataRequest(gossiper, request)
 
-		for {
-			continueDownloading := true
-			// select statement
-			select {
-			// if ticker timeout
-			case <-ticker.C:
-				// resend data request
-				if !haveMetaFile {
-					request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
-					forwardDataRequest(gossiper, request)
+	for {
+		continueDownloading := true
+		// select statement
+		select {
+		// if ticker timeout
+		case <-ticker.C:
+			// resend data request
+			if !haveMetaFile {
+				request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
+				forwardDataRequest(gossiper, request)
+			} else {
+				downloadFrom := match.LocationOfChunks[nextIdx]
+				chunkHash := fInfo.Metafile[uint32(nextIdx)]
+				helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
+				resendDataRequest(gossiper, downloadFrom, chunkHash)
+			}
+		case reply := <-ch:
+			if reply != nil {
+				// if a dataReply comes from the chanel
+				if len(reply.Data) == 0 {
+					// if the Data field of the reply was empty, stop downloading
+					continueDownloading = false
 				} else {
-					downloadFrom := match.LocationOfChunks[nextIdx]
-					chunkHash := fInfo.Metafile[uint32(nextIdx)]
-					helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
-					resendDataRequest(gossiper, downloadFrom, chunkHash)
-				}
-			case reply := <-ch:
-				if reply != nil {
-					// if a dataReply comes from the chanel
-					if len(reply.Data) == 0 {
-						// if the Data field of the reply was empty, stop downloading
-						continueDownloading = false
+					// sanity check - make sure it is a reply to my last request
+					var lastChunk [constants.HashSize]byte
+					if !haveMetaFile {
+						lastChunk = convertSliceTo32Fixed(match.Metahash)
 					} else {
-						// sanity check - make sure it is a reply to my last request
-						var lastChunk [constants.HashSize]byte
+						lastChunk = fInfo.Metafile[uint32(nextIdx)]
+					}
+					if !replyWasExpected(lastChunk[:], reply) {
+						// received data reply for a chunk that was not requested; do nothing
+					}
+					if !replyIntegrityCheck(reply) {
+						// received data reply with mismatching hash and data; resend request
 						if !haveMetaFile {
-							lastChunk = convertSliceTo32Fixed(match.Metahash)
+							resendDataRequest(gossiper, randomPeer, convertSliceTo32Fixed(match.Metahash))
 						} else {
-							lastChunk = fInfo.Metafile[uint32(nextIdx)]
-						}
-						if !replyWasExpected(lastChunk[:], reply) {
-							// received data reply for a chunk that was not requested; do nothing
-						}
-						if !replyIntegrityCheck(reply) {
-							// received data reply with mismatching hash and data; resend request
-							if !haveMetaFile {
-								resendDataRequest(gossiper, randomPeer, convertSliceTo32Fixed(match.Metahash))
-							} else {
-								downloadFrom := match.LocationOfChunks[nextIdx]
-								helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
-								chunkHash := fInfo.Metafile[uint32(nextIdx)]
-								resendDataRequest(gossiper, downloadFrom, chunkHash)
-							}
-						} else {
-							chunkHash := convertSliceTo32Fixed(reply.HashValue)
-							chunkHashString := hashToString(chunkHash)
-							if !haveMetaFile {
-								fInfo.Metafile = mapifyMetafile(reply.Data)
-								haveMetaFile = true
-							} else {
-								// the datareply SHOULD be containing a file data chunk
-								// update FileInfo struct
-								fInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
-								nextIdx++
-							}
-
-							// save chunk to a new file
-							// chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
-							// ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], constants.FileMode)
-							// if that was the last chunk to be downloaded close the chanel and save the full file
-							if nextIdx == match.ChunkCount {
-								helpers.PrintReconstructedFile(fname)
-								continueDownloading = false
-								reconstructAndSaveFullyDownloadedFile(fInfo)
-							}
-						}
-
-						if continueDownloading {
-							// if not, get next chunk request, (update ticker) and send it
-							ticker = time.NewTicker(5 * time.Second)
-							nextHashToRequest := fInfo.Metafile[uint32(nextIdx)]
 							downloadFrom := match.LocationOfChunks[nextIdx]
-							request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
 							helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
-							forwardDataRequest(gossiper, request)
+							chunkHash := fInfo.Metafile[uint32(nextIdx)]
+							resendDataRequest(gossiper, downloadFrom, chunkHash)
 						}
+					} else {
+						chunkHash := convertSliceTo32Fixed(reply.HashValue)
+						chunkHashString := hashToString(chunkHash)
+						if !haveMetaFile {
+							fInfo.Metafile = mapifyMetafile(reply.Data)
+							haveMetaFile = true
+						} else {
+							// the datareply SHOULD be containing a file data chunk
+							// update FileInfo struct
+							fInfo.ChunksMap[chunkHashString] = reply.Data[:len(reply.Data)]
+							nextIdx++
+						}
+
+						// save chunk to a new file
+						// chunkPath, _ := filepath.Abs(constants.DownloadedFilesChunksFolder + "/" + chunkHashString)
+						// ioutil.WriteFile(chunkPath, reply.Data[:len(reply.Data)], constants.FileMode)
+						// if that was the last chunk to be downloaded close the chanel and save the full file
+						if nextIdx == match.ChunkCount {
+							helpers.PrintReconstructedFile(fname)
+							continueDownloading = false
+							reconstructAndSaveFullyDownloadedFile(fInfo)
+						}
+					}
+
+					if continueDownloading {
+						// if not, get next chunk request, (update ticker) and send it
+						ticker = time.NewTicker(5 * time.Second)
+						nextHashToRequest := fInfo.Metafile[uint32(nextIdx)]
+						downloadFrom := match.LocationOfChunks[nextIdx]
+						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
+						helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
+						forwardDataRequest(gossiper, request)
 					}
 				}
 			}
-			if !continueDownloading {
-				break
-			}
 		}
-		downloadedFilesCount++
-		if downloadedFilesCount == constants.FullMatchesThreshold {
-			// we stop search after FullMatchesThreshold found, so chances are very slim to go beyond that, but to make sure we check here
-			//		(e.g. finding more than one full match at the same time and one of those being the last one we need)
+		if !continueDownloading {
 			break
 		}
 	}
+	// downloadedFilesCount++
+	// if downloadedFilesCount == constants.FullMatchesThreshold {
+	// 	// we stop search after FullMatchesThreshold found, so chances are very slim to go beyond that, but to make sure we check here
+	// 	//		(e.g. finding more than one full match at the same time and one of those being the last one we need)
+	// 	break
+	// }
+	// }
 }
 
 func initiateRegularDownloading(gossiper *core.Gossiper, downloadFrom string, fname string, state *core.DownloadingState) {

@@ -90,34 +90,6 @@ func HandlePeerSearchRequest(gossiper *core.Gossiper, searchRequest *core.Search
 			core.ConnectAndSend(peer, gossiper.Conn, packetBytes)
 		}
 	}
-
-	// if peersCount != 0 {
-	// 	baseBudget := searchRequest.Budget / peersCount
-	// 	extraBudget := searchRequest.Budget % peersCount
-	// 	fmt.Printf("Basebudget == %d :: extrabudget == %d\n", baseBudget, extraBudget)
-	// 	idx := uint64(0)
-	// 	for ; idx < extraBudget; idx++ {
-	// 		if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
-	// 			tempBudget := baseBudget + 1
-	// 			// SEND basebudget + 1 to extraBudget number of peers
-	// 			newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(tempBudget), Keywords: searchRequest.Keywords}
-	// 			packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
-	// 			packetBytes, err := protobuf.Encode(&packetToSend)
-	// 			helpers.HandleErrorFatal(err)
-	// 			core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
-	// 		}
-	// 	}
-	// 	for ; idx < peersCount; idx++ {
-	// 		// send basebudget to the rest of the peers
-	// 		if strings.Compare(searchRequest.Origin, peers[idx]) != 0 {
-	// 			newSearchRequest := &core.SearchRequest{Origin: searchRequest.Origin, Budget: uint64(baseBudget), Keywords: searchRequest.Keywords}
-	// 			packetToSend := core.GossipPacket{SearchRequest: newSearchRequest}
-	// 			packetBytes, err := protobuf.Encode(&packetToSend)
-	// 			helpers.HandleErrorFatal(err)
-	// 			core.ConnectAndSend(peers[idx], gossiper.Conn, packetBytes)
-	// 		}
-	// 	}
-	// }
 }
 
 // A function to handle a search reply coming from another peerster node
@@ -230,7 +202,8 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 				//      From the metahash in the search result, reconstruct the metafile bytes
 				//      and read the corresponding 32-bit regions, encode them to strings and issue
 				//      separate 'chunk download requests to peers'.
-				go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
+
+				// go initiateFileDownloading(gossiper, "", "", nil, matchesSlice)
 				return
 			}
 			ticker = time.NewTicker(1 * time.Second)
@@ -247,7 +220,6 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 ///////////////////////////////////////////////////////////////////////////
 
 func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
-
 	if msg.HopLimit == 0 {
 		// if we have reached the HopLimit, drop the message
 		return

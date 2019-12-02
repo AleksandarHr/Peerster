@@ -63,7 +63,11 @@ func checkFlags(uiPortPtr, msgPtr, destPtr, fileToSharePtr, requestHash, keyword
 		strings.Compare(*destPtr, "") == 0 &&
 		strings.Compare(*msgPtr, "") == 0)
 
-	if !(fileDownload || fileShare || sendingMessage || fileSearch) {
+	implicitFileDownload := (strings.Compare(*requestHash, "") != 0 &&
+		strings.Compare(*fileToSharePtr, "") != 0 &&
+		strings.Compare(*destPtr, "") == 0)
+
+	if !(fileDownload || fileShare || sendingMessage || fileSearch || implicitFileDownload) {
 		log.Fatal("Combination of flags is not allowed.")
 		os.Exit(1)
 	}
