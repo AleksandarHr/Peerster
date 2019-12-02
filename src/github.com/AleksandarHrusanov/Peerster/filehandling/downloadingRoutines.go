@@ -57,8 +57,8 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 	haveMetaFile := false
 	nextIdx := uint64(0)
 
-	rand.Seed(time.Now().UnixNano())
-	randomPeer := match.LocationOfChunks[uint64(rand.Intn(len(match.LocationOfChunks)))]
+	// pick a random peer to request the metafile from
+	randomPeer := pickRandomPeerToRequestChunk(match, nextIdx)
 	request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
 	forwardDataRequest(gossiper, request)
 
@@ -74,7 +74,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 				request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
 				forwardDataRequest(gossiper, request)
 			} else {
-				downloadFrom := match.LocationOfChunks[nextIdx]
+				downloadFrom := pickRandomPeerToRequestChunk(match, nextIdx)
 				chunkHash := fInfo.Metafile[uint32(nextIdx)]
 				helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 				resendDataRequest(gossiper, downloadFrom, chunkHash)
@@ -102,7 +102,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 						if !haveMetaFile {
 							resendDataRequest(gossiper, randomPeer, convertSliceTo32Fixed(match.Metahash))
 						} else {
-							downloadFrom := match.LocationOfChunks[nextIdx]
+							downloadFrom := pickRandomPeerToRequestChunk(match, nextIdx)
 							chunkHash := fInfo.Metafile[uint32(nextIdx)]
 							helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 							resendDataRequest(gossiper, downloadFrom, chunkHash)
@@ -132,7 +132,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 						ticker = time.NewTicker(5 * time.Second)
 						nextIdx++
 						nextHashToRequest := fInfo.Metafile[uint32(nextIdx)]
-						downloadFrom := match.LocationOfChunks[nextIdx]
+						downloadFrom := pickRandomPeerToRequestChunk(match, nextIdx)
 						request := createDataRequest(gossiper.Name, downloadFrom, nextHashToRequest[:])
 						helpers.PrintDownloadingChunk(fname, downloadFrom, uint32(nextIdx))
 						forwardDataRequest(gossiper, request)
@@ -245,4 +245,21 @@ func initiateRegularDownloading(gossiper *core.Gossiper, downloadFrom string, fn
 			break
 		}
 	}
+}
+
+func pickRandomPeerToRequestChunk(match *core.FileSearchMatch, chunkIdx uint64) string {
+	allChunkLocations := match.LocationOfChunks
+	var peerSet []string
+	rand.Seed(time.Now().UnixNano())
+
+	if chunkIdx != 0 {
+		peerSet = allChunkLocations[chunkIdx]
+	} else {
+		// pick a random peer to request metafile
+		peerSet = allChunkLocations[(rand.Uint64() % match.ChunkCount)]
+	}
+
+	// pick a random peer to request chunk with id = chunkIdx
+	randomPeerIdx := rand.Intn(len(peerSet))
+	return peerSet[randomPeerIdx]
 }

@@ -2,7 +2,6 @@ package filehandling
 
 import (
 	"encoding/hex"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -134,11 +133,9 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 			//   matches (e.g. 2 for the tests)
 
 			if defaultBudget {
-				fmt.Printf("Budget == %d\n", searchBudget)
 				// check if budget exceeded maximum
 				if searchBudget > constants.RingSearchBudgetLimit {
 					//    if so, end the search, return
-					fmt.Println("Reached budget limit, end search")
 					// gossiper.OngoingFileSearch.IsOngoing = false
 					return
 				}
@@ -168,7 +165,9 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 						for _, chunk := range res.ChunkMap {
 							if _, haveIt := infoSoFar.LocationOfChunks[chunk]; !haveIt {
 								// if we don't have info about this chunk, add the reply's origin
-								infoSoFar.LocationOfChunks[chunk] = searchReply.Origin
+								peersSoFar := infoSoFar.LocationOfChunks[chunk]
+								peersSoFar = append(peersSoFar, searchReply.Origin)
+								infoSoFar.LocationOfChunks[chunk] = peersSoFar
 							}
 						}
 					}
@@ -177,9 +176,11 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 					gossiper.OngoingFileSearch.MatchesFound = currentMatches
 				} else {
 					// received search results for a new file (e.g. we don't have any info about it so far)
-					newMatch := &core.FileSearchMatch{FileName: res.FileName, ChunkCount: res.ChunkCount, LocationOfChunks: make(map[uint64]string), Metahash: res.MetafileHash}
+					newMatch := &core.FileSearchMatch{FileName: res.FileName, ChunkCount: res.ChunkCount, LocationOfChunks: make(map[uint64][]string), Metahash: res.MetafileHash}
 					for _, ch := range res.ChunkMap {
-						newMatch.LocationOfChunks[ch] = searchReply.Origin
+						peersSoFar := newMatch.LocationOfChunks[ch]
+						peersSoFar = append(peersSoFar, searchReply.Origin)
+						newMatch.LocationOfChunks[ch] = peersSoFar
 					}
 					gossiper.OngoingFileSearch.MatchesFound[res.FileName] = newMatch
 				}

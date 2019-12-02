@@ -9,7 +9,7 @@ type FileSearchMatch struct {
 	ChunkCount uint64
 	Metahash   []byte
 	// maps chunk index to peer where we found the chunk at
-	LocationOfChunks map[uint64]string
+	LocationOfChunks map[uint64][]string
 }
 
 // A struct to hold information about the currently executed search request
