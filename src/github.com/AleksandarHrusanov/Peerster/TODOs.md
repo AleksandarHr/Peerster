@@ -11,3 +11,4 @@
 * Add usage of RLock in place of Lock where appropriate
 * Add some error checks - e.g. indexing non-existing files
 * Use some receiver methods where appropriate
+* Spread TLC messages like regular rumors

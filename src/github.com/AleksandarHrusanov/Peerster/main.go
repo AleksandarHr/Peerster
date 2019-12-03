@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"strings"
+
+	"github.com/AleksandarHrusanov/Peerster/core"
 	"github.com/AleksandarHrusanov/Peerster/gossiper"
 	"github.com/AleksandarHrusanov/Peerster/helpers"
-	"github.com/AleksandarHrusanov/Peerster/core"
 	"github.com/AleksandarHrusanov/Peerster/server"
 )
 
@@ -23,6 +24,14 @@ func main() {
 		"Use the given timeout in seconds for anti-entropy.")
 	routeRumorPtr := flag.Int("rtimer", 0,
 		"Use the given time period in seconds to send a route rumor.")
+	// hw3ex2Ptr := flag.Bool("hw3ex2", false,
+	// 	"Run gossiper in mode for hw3ex2")
+	nPtr := flag.Int("N", 1,
+		"Number of nodes in the network, including current peer.")
+	stubbornTimeoutPtr := flag.Int("stubbornTimeout", 5,
+		"Resend tlc message if no majority of acks before that many seconds.")
+	// hopLimitPtr := flag.Int("hopLimit", 10,
+	// "Hop limit for TLCAck")
 	flag.Parse()
 
 	// Check that the gossiper has a name
@@ -42,5 +51,5 @@ func main() {
 
 	// Start server
 	go server.StartServer(gossiperPtr)
-	gossiper.StartGossiper(gossiperPtr, simplePtr, antiEntropyPtr, routeRumorPtr)
+	gossiper.StartGossiper(gossiperPtr, simplePtr, antiEntropyPtr, routeRumorPtr, nPtr, stubbornTimeoutPtr)
 }

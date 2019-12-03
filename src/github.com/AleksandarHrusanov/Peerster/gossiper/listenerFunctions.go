@@ -1,7 +1,7 @@
 package gossiper
 
 import (
-	"math/rand"
+	"encoding/hex"
 	"net"
 	"strings"
 	"time"
@@ -15,7 +15,7 @@ import (
 
 // TODO: Break this function into shorter separate functions
 // Main peersListener function
-func peersListener(gossiper *core.Gossiper, simpleMode bool) {
+func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int) {
 	// Remove all timed-out or handled mongering statuses
 	go mongeringStatusRefresher(gossiper)
 
@@ -81,195 +81,24 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool) {
 			} else if gossipPacket.Private != nil {
 				// Handle incoming private message from another peer
 				handlePrivateMessage(gossiper, gossipPacket.Private)
+			} else if gossipPacket.TLCMessage != nil {
+				blockchain.HandleTLCMessage(gossiper, gossipPacket.TLCMessage, peerCount)
+			} else if gossipPacket.Ack != nil {
+				blockchain.HandleTlcAck(gossiper, gossipPacket.Ack, peerCount)
 			} else if gossipPacket.Rumor != nil {
 				// Print RumorFromPeer output
 				// helpers.PrintOutputRumorFromPeer(gossipPacket.Rumor.Origin, fromAddr, gossipPacket.Rumor.ID, gossipPacket.Rumor.Text, knownPeers)
-
-				// Check if the Rumor or its Origin is known
-				rumorIsKnown, originIsKnown, wantedID := core.IsRumorKnown(gossiper.Want, gossipPacket.Rumor)
-
-				if rumorIsKnown {
-					// Do nothing
-
-				} else if originIsKnown && wantedID == gossipPacket.Rumor.ID {
-					// Update wantedID in Want slice
-					updateWant(gossiper, gossipPacket.Rumor.Origin)
-
-				} else if originIsKnown && wantedID < gossipPacket.Rumor.ID {
-					// Do nothing
-
-				} else if !originIsKnown {
-					if gossipPacket.Rumor.ID == 1 {
-						// If ID = 1, new Rumor: add it to list of known rumors
-						// and create new PeerStatus
-						updateWant(gossiper, gossipPacket.Rumor.Origin)
-
-					} else {
-						// If ID > 1, create new PeerStatus
-						newPeerStatus := core.PeerStatus{
-							Identifier: gossipPacket.Rumor.Origin,
-							NextID:     uint32(1),
-						}
-						gossiper.Want = append(gossiper.Want, newPeerStatus)
-					}
-				}
-
-				// Update destiantionTable
-				gossiper.DestinationTable.DsdvLock.Lock()
-				core.UpdateDestinationTable(gossiper.Name, gossipPacket.Rumor.Origin, gossipPacket.Rumor.ID, fromAddr,
-					gossiper.DestinationTable.Dsdv, gossiper.KnownRumors, originIsKnown, !core.IsRouteRumor(gossipPacket.Rumor))
-				gossiper.DestinationTable.DsdvLock.Unlock()
-
-				// Send status
-				sendStatus(gossiper, fromAddr)
-
-				if !rumorIsKnown {
-					if len(knownPeers) > 0 {
-						// Pick a random address and send the rumor
-						chosenAddr := helpers.PickRandomInSlice(knownPeers)
-						sendRumor(*gossipPacket.Rumor, gossiper, chosenAddr)
-						// helpers.PrintOutputMongering(chosenAddr)
-					}
-				}
-
-				// Add Rumor to list of known Rumors if it is not already there
-				addRumorToKnownRumors(gossiper, *gossipPacket.Rumor)
+				handleRumorMessage(gossiper, gossipPacket.Rumor, fromAddr, knownPeers)
 			} else if gossipPacket.Status != nil {
 				// Print STATUS message
 				// core.PrintOutputStatus(fromAddr, gossipPacket.Status.Want, gossiper.KnownPeers)
-
-				// Check own rumorID to avoid crashes after reconnection (TODO)
-				adjustMyCurrentID(gossiper, *gossipPacket.Status)
-
-				// Check if the gossiper was waiting for this status packet and retrieve the
-				// corresponding Rumor if we need to send it again after a coin flip
-				rumorsToFlipCoinFor := make([]core.RumorMessage, 0)
-				// For each mongeringstatus
-				for _, mongeringStatus := range gossiper.MongeringStatus {
-					// Check if the mongeringStatus has not yet been deleted
-					if mongeringStatus != nil {
-						mongeringStatus.Lock.Lock()
-					} else {
-						continue
-					}
-					// Check that we were waiting an answer from this address
-					if strings.Compare(mongeringStatus.WaitingStatusFromAddr, fromAddr) == 0 {
-						select {
-						case _, ok := <-mongeringStatus.TimeUp:
-							// Do nothing if it has timed-up
-							_ = ok
-						default:
-							// Check which Rumors have been acknowledge if any, can acknowldge
-							// more than one Rumor
-							if !mongeringStatus.AckReceived {
-								// For each want of the other gossiper
-								for _, want := range gossipPacket.Status.Want {
-									if strings.Compare(want.Identifier, mongeringStatus.RumorMessage.Origin) == 0 &&
-										want.NextID > mongeringStatus.RumorMessage.ID {
-										rumorsToFlipCoinFor = updateRumorListNoDuplicates(mongeringStatus.RumorMessage,
-											rumorsToFlipCoinFor)
-										mongeringStatus.AckReceived = true
-									}
-								}
-							}
-						}
-					}
-					mongeringStatus.Lock.Unlock()
-				}
-
-				// Check the received status packet
-				iWantYourRumors := false
-				youWantMyRumors := false
-				var peerStatusTemp core.PeerStatus
-
-				for _, peerStatus := range gossipPacket.Status.Want {
-					peerFound := false
-					for _, ownPeerStatus := range gossiper.Want {
-						if strings.Compare(peerStatus.Identifier, ownPeerStatus.Identifier) == 0 {
-							peerFound = true
-							if peerStatus.NextID < ownPeerStatus.NextID {
-								// The other peer has not yet seen some of the Rumor I have
-								youWantMyRumors = true
-								peerStatusTemp = peerStatus
-							} else if peerStatus.NextID > ownPeerStatus.NextID {
-								// The other peer has some Rumor I do not have
-								iWantYourRumors = true
-							}
-						}
-					}
-					// Case: the peer know a peer I do not know
-					if !peerFound {
-						iWantYourRumors = true
-						newPeerStatus := core.PeerStatus{
-							Identifier: peerStatus.Identifier,
-							NextID:     1,
-						}
-						gossiper.Want = append(gossiper.Want, newPeerStatus)
-					}
-				}
-
-				// Check if the other peer know the same peer as I do
-				withFreshID := false
-				if !iWantYourRumors && !youWantMyRumors {
-					for _, ownPeerStatus := range gossiper.Want {
-						peerFound := false
-						for _, peerStatus := range gossipPacket.Status.Want {
-							if strings.Compare(peerStatus.Identifier, ownPeerStatus.Identifier) == 0 {
-								peerFound = true
-							}
-						}
-						// Case: I know a peer that the other peer don't
-						if !peerFound {
-							youWantMyRumors = true
-							peerStatusTemp = ownPeerStatus
-							withFreshID = true
-						}
-					}
-				}
-
-				// Solve the cases
-				if youWantMyRumors {
-					var rumorToSend *core.RumorMessage
-					if withFreshID {
-						rumorToSend = getRumor(gossiper, peerStatusTemp.Identifier, 1)
-					} else {
-						rumorToSend = getRumor(gossiper, peerStatusTemp.Identifier, peerStatusTemp.NextID)
-					}
-					if rumorToSend != nil {
-						// helpers.PrintOutputMongering(fromAddr)
-						sendRumor(*rumorToSend, gossiper, fromAddr)
-					}
-				} else if iWantYourRumors {
-					sendStatus(gossiper, fromAddr)
-				} else {
-					// Case: each peer is up-to-date and the gossiper
-					// decide to continue rumormongering or not
-					// Print IN SYNC WITH message
-					// helpers.PrintOutputInSyncWith(fromAddr)
-					// Continue mongering test
-					if len(rumorsToFlipCoinFor) > 0 {
-						for _, rToFlip := range rumorsToFlipCoinFor {
-							seed := rand.NewSource(time.Now().UnixNano())
-							rng := rand.New(seed)
-							flipCoinResult := rng.Intn(2)
-							if flipCoinResult == 0 {
-								// Pick a random address and send the rumor
-								chosenAddr := helpers.PickRandomInSliceDifferentFrom(knownPeers, fromAddr)
-								if strings.Compare(chosenAddr, "") != 0 {
-									// Print FLIPPED COIN message and send rumor
-									sendRumor(rToFlip, gossiper, chosenAddr)
-									// helpers.PrintOutputFlippedCoin(chosenAddr)
-								}
-							}
-						}
-					}
-				}
+				handleStatusPacket(gossiper, gossipPacket.Status, fromAddr, knownPeers)
 			}
 		}
 	}
 }
 
-func clientListener(gossiper *core.Gossiper, simpleMode bool) {
+func clientListener(gossiper *core.Gossiper, simpleMode bool, stubbornTimeout int) {
 	for {
 		gossiper.PeersLock.Lock()
 		knownPeers := gossiper.KnownPeers
@@ -303,18 +132,46 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 				//Handle messages from client to simply index a file
 				newFile := filehandling.HandleFileIndexing(gossiper, *message.File)
 
-				// Create and add new TLC to knownTLCs
-				blockPublish := blockchain.CreateBlockPublish(newFile.FileName, newFile.Size, newFile.MetaHash[:])
-				newTLC := blockchain.CreateTLCMessage(gossiper, *blockPublish)
-				addTLCToKnownTLCs(gossiper, *newTLC)
-				updateWant(gossiper, gossiper.Name)
+				go func(gossiper *core.Gossiper, newFile *core.FileInformation) {
+					// Create and add new TLC to knownTLCs
+					blockPublish := blockchain.CreateBlockPublish(newFile.FileName, newFile.Size, newFile.MetaHash[:])
+					newTLC := blockchain.CreateTLCMessage(gossiper, *blockPublish)
+					blockchain.AddTLCToKnownTLCs(gossiper, newTLC)
+					blockchain.AddOwnTLC(gossiper, newTLC)
 
-				// Pick a random address and send the tlc message
-				chosenAddr := ""
-				if len(knownPeers) > 0 {
-					chosenAddr = helpers.PickRandomInSlice(knownPeers)
-					sendTLC(newTLC, gossiper, chosenAddr)
-				}
+					for {
+						ownTlc := gossiper.MyTLCs[newTLC.ID]
+						updatedTlc := ownTlc.TLC
+						if updatedTlc.Confirmed == -1 {
+							// If stubbornTimeout passed and TLC message is still unconfirmed
+							// simply send to a random peer
+							packetToSend := core.GossipPacket{TLCMessage: &updatedTlc}
+							packetBytes, err := protobuf.Encode(&packetToSend)
+							helpers.HandleErrorFatal(err)
+							chosenAddr := ""
+							if len(knownPeers) > 0 {
+								chosenAddr = helpers.PickRandomInSlice(knownPeers)
+								core.ConnectAndSend(chosenAddr, gossiper.Conn, packetBytes)
+								helpers.PrintUnconfirmedGossip(gossiper.Name, newFile.FileName,
+									hex.EncodeToString(newFile.MetaHash[:]), updatedTlc.ID, updatedTlc.TxBlock.Transaction.Size)
+							}
+							time.Sleep(time.Duration(stubbornTimeout) * time.Second)
+						} else {
+							break
+						}
+					}
+				}(gossiper, newFile)
+
+				// monger tlc message just like a rumor message
+				// updateWant(gossiper, gossiper.Name)
+				//
+				// // Pick a random address and send the tlc message
+				// chosenAddr := ""
+				// if len(knownPeers) > 0 {
+				// 	chosenAddr = helpers.PickRandomInSlice(knownPeers)
+				// 	sendTLC(newTLC, gossiper, chosenAddr)
+				// 	helpers.PrintUnconfirmedGossip(newTLC.Origin, newFile.FileName, hex.EncodeToString(newFile.MetaHash[:]), newTLC.ID, blockPublish.Transaction.Size)
+				// }
 			} else if isClientRequestingDownload(&message) {
 				// Handle message from client to request a file download
 				filehandling.HandleClientDownloadRequest(gossiper, &message)

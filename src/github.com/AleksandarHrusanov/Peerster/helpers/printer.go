@@ -106,3 +106,19 @@ func PrintFileMatchFound(fname string, peer string, metahash string, chunks []ui
 func PrintSearchFinished() {
 	fmt.Println("SEARCH FINISHED")
 }
+
+func PrintUnconfirmedGossip(origin, name, metahash string, id uint32, size int64) {
+	fmt.Printf("UNCONFIRMED GOSSIP origin %s ID %d file name %s size %d metahash %s\n", origin, id, name, size, metahash)
+}
+
+func PrintSendingAck(origin string, id uint32) {
+	fmt.Printf("SENDING ACK origin %s ID %d\n", origin, id)
+}
+
+func PrintReBroadcastId(id uint32, witnesses string) {
+	fmt.Printf("RE-BROADCAST ID %d WITNESSES %s\n", id, witnesses)
+}
+
+func PrintConfirmedGossip(origin, name, metahash string, id uint32, size int64) {
+	fmt.Printf("CONFIRMED GOSSIP origin %s ID %d file name %s size %d metahash %s\n", origin, id, name, size, metahash)
+}

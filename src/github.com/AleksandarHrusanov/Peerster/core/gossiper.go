@@ -74,6 +74,12 @@ type SafeRecentFileSearches struct {
 	SearchesLock sync.Mutex
 }
 
+type OwnTLC struct {
+	TLC          TLCMessage
+	AcksReceived int
+	Witnesses    map[string]bool
+}
+
 // Gossiper Struct of a gossiper
 // TODO: Change MongeringStatus to a map for faster access
 type Gossiper struct {
@@ -87,9 +93,11 @@ type Gossiper struct {
 	PeersLock          sync.Mutex
 	KnownRumors        []RumorMessage
 	KnownTLCs          []TLCMessage
+	MyTLCs             map[uint32]OwnTLC
+	TLCLock            sync.Mutex
 	CurrentMongeringID uint32
 	TlcIDs             map[uint32]bool
-	MongeringIDLock        sync.Mutex
+	MongeringIDLock    sync.Mutex
 	Want               []PeerStatus
 	MongeringStatus    []*MongeringStatus
 	DestinationTable   *SafeDestinationTable
@@ -128,6 +136,7 @@ func NewGossiper(address string, name string,
 		KnownPeers:         knownPeersList,
 		KnownRumors:        make([]RumorMessage, 0),
 		KnownTLCs:          make([]TLCMessage, 0),
+		MyTLCs:             make(map[uint32]OwnTLC, 0),
 		Want:               make([]PeerStatus, 0),
 		LocalAddr:          udpAddrLocal,
 		LocalConn:          udpConnLocal,

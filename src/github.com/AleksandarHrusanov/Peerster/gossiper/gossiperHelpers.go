@@ -39,16 +39,6 @@ func addRumorToKnownRumors(g *core.Gossiper, r core.RumorMessage) {
 	g.KnownRumors = append(g.KnownRumors, r)
 }
 
-// Add a TLC to the gossiper's known TLCs if it is not already there
-func addTLCToKnownTLCs(g *core.Gossiper, t core.TLCMessage) {
-	for _, tlc := range g.KnownTLCs {
-		if strings.Compare(tlc.Origin, t.Origin) == 0 && tlc.ID == t.ID {
-			return
-		}
-	}
-	g.KnownTLCs = append(g.KnownTLCs, t)
-}
-
 // Update Want slice for given origin
 func updateWant(g *core.Gossiper, origin string) {
 	if strings.Compare(origin, "") == 0 {
