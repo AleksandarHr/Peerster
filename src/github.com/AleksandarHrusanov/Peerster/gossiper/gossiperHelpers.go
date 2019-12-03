@@ -39,6 +39,16 @@ func addRumorToKnownRumors(g *core.Gossiper, r core.RumorMessage) {
 	g.KnownRumors = append(g.KnownRumors, r)
 }
 
+// Add a TLC to the gossiper's known TLCs if it is not already there
+func addTLCToKnownTLCs(g *core.Gossiper, t core.TLCMessage) {
+	for _, tlc := range g.KnownTLCs {
+		if strings.Compare(tlc.Origin, t.Origin) == 0 && tlc.ID == t.ID {
+			return
+		}
+	}
+	g.KnownTLCs = append(g.KnownTLCs, t)
+}
+
 // Update Want slice for given origin
 func updateWant(g *core.Gossiper, origin string) {
 	if strings.Compare(origin, "") == 0 {
@@ -61,8 +71,8 @@ func updateWant(g *core.Gossiper, origin string) {
 // Get the gossiper current ID from its own Rumors. Useful when reconnecting
 // to the network after having already sent some Rumors
 func adjustMyCurrentID(g *core.Gossiper, status core.StatusPacket) {
-	g.RumorIDLock.Lock()
-	if g.CurrentRumorID == uint32(0) {
+	g.MongeringIDLock.Lock()
+	if g.CurrentMongeringID == uint32(0) {
 		currentMaxIDFromRumors := uint32(0)
 		for _, st := range status.Want {
 			if strings.Compare(st.Identifier, g.Name) == 0 && st.NextID > currentMaxIDFromRumors {
@@ -70,10 +80,10 @@ func adjustMyCurrentID(g *core.Gossiper, status core.StatusPacket) {
 			}
 		}
 		if currentMaxIDFromRumors > 0 {
-			g.CurrentRumorID = currentMaxIDFromRumors - 1
+			g.CurrentMongeringID = currentMaxIDFromRumors - 1
 		}
 	}
-	g.RumorIDLock.Unlock()
+	g.MongeringIDLock.Unlock()
 }
 
 // CreateSliceKnownPeers Create the slice of known peers necessary given a string containing

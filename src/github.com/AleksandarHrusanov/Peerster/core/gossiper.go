@@ -11,6 +11,7 @@ import (
 // MongeringStatus struct of a mongering status linked with a timer
 type MongeringStatus struct {
 	RumorMessage          RumorMessage
+	TLC                   TLCMessage
 	WaitingStatusFromAddr string
 	TimeUp                chan bool
 	AckReceived           bool
@@ -85,8 +86,10 @@ type Gossiper struct {
 	KnownPeers         []string
 	PeersLock          sync.Mutex
 	KnownRumors        []RumorMessage
-	CurrentRumorID     uint32
-	RumorIDLock        sync.Mutex
+	KnownTLCs          []TLCMessage
+	CurrentMongeringID uint32
+	TlcIDs             map[uint32]bool
+	MongeringIDLock        sync.Mutex
 	Want               []PeerStatus
 	MongeringStatus    []*MongeringStatus
 	DestinationTable   *SafeDestinationTable
@@ -124,10 +127,12 @@ func NewGossiper(address string, name string,
 		Name:               name,
 		KnownPeers:         knownPeersList,
 		KnownRumors:        make([]RumorMessage, 0),
+		KnownTLCs:          make([]TLCMessage, 0),
 		Want:               make([]PeerStatus, 0),
 		LocalAddr:          udpAddrLocal,
 		LocalConn:          udpConnLocal,
-		CurrentRumorID:     uint32(0),
+		CurrentMongeringID: uint32(0),
+		TlcIDs:             make(map[uint32]bool, 0),
 		MongeringStatus:    make([]*MongeringStatus, 0),
 		uiPort:             UIPort,
 		DestinationTable:   dsdv,

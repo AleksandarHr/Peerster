@@ -45,6 +45,29 @@ func sendRumor(r core.RumorMessage, gossiper *core.Gossiper, toAddr string) {
 	core.ConnectAndSend(toAddr, gossiper.Conn, packetBytes)
 }
 
+// Send a RumorMessage to the given address
+func sendTLC(tlc *core.TLCMessage, gossiper *core.Gossiper, toAddr string) {
+	packetToSend := core.GossipPacket{TLCMessage: tlc}
+	packetBytes, err := protobuf.Encode(&packetToSend)
+
+	// Create new mongering status, set a timer for it and
+	// append it to the slice in the gossiper struct
+	newMongeringStatus := core.MongeringStatus{
+		TLC:                   *tlc,
+		WaitingStatusFromAddr: toAddr,
+		TimeUp:                make(chan bool),
+		AckReceived:           false,
+	}
+	go func(mongeringStatusPtr *core.MongeringStatus) {
+		time.Sleep(10 * time.Second)
+		mongeringStatusPtr.TimeUp <- true
+	}(&newMongeringStatus)
+	gossiper.MongeringStatus = append(gossiper.MongeringStatus, &newMongeringStatus)
+
+	helpers.HandleErrorFatal(err)
+	core.ConnectAndSend(toAddr, gossiper.Conn, packetBytes)
+}
+
 // Receive a message from UDP and decode it into a GossipPacket
 func receiveAndDecode(gossiper *core.Gossiper) (core.GossipPacket, *net.UDPAddr) {
 	// Create buffer

@@ -13,17 +13,17 @@ import (
 //		and send it to a randomly chosen known peer
 func generateAndSendRouteRumor(gossiperPtr *core.Gossiper, toAll bool) {
 
-	gossiperPtr.RumorIDLock.Lock()
+	gossiperPtr.MongeringIDLock.Lock()
 	rumorOrigin := gossiperPtr.Name
-	rumorID := gossiperPtr.CurrentRumorID
+	rumorID := gossiperPtr.CurrentMongeringID
 
 	newRouteRumor := core.RumorMessage{
 		Origin: rumorOrigin,
 		ID:     rumorID,
 		Text:   "",
 	}
-	gossiperPtr.CurrentRumorID++
-	gossiperPtr.RumorIDLock.Unlock()
+	gossiperPtr.CurrentMongeringID++
+	gossiperPtr.MongeringIDLock.Unlock()
 
 	packetToSend := core.GossipPacket{Rumor: &newRouteRumor}
 	packetBytes, err := protobuf.Encode(&packetToSend)

@@ -11,10 +11,11 @@ import (
 )
 
 // HandleFileIndexing - a function to index, divide, hash, and save hashed chunks of a file
-func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
+func HandleFileIndexing(gossiper *core.Gossiper, fname string) *core.FileInformation {
 
 	filePath, _ := filepath.Abs(constants.SharedFilesFolder + fname)
 	file, err := os.Open(filePath)
+	fileSize := int64(0)
 
 	fileInfo := &core.FileInformation{FileName: fname, Metafile: make(map[uint32][constants.HashSize]byte),
 		ChunksMap: make(map[string][]byte)}
@@ -39,25 +40,18 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	for i := uint64(0); i < totalChunksCount; i++ {
 		currChunkSize := int(math.Min(constants.FixedChunkSize,
 			float64(fSize-int64(i*constants.FixedChunkSize))))
-		// fmt.Println("Chunk ", i, " has size of ", currChunkSize, " bytes")
 		buffer := make([]byte, currChunkSize)
 		bytesRead, _ := file.Read(buffer)
+		fileSize += int64(bytesRead)
 		buffer = buffer[:bytesRead]
 		hash := computeSha256(buffer)
 		newName := hashToString(hash)
-		// chunkPath, _ := filepath.Abs(constants.ShareFilesChunksFolder + "/" + newName)
-		// _, err := os.Create(chunkPath)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	os.Exit(1)
-		// }
 
 		metaFile[uint32(i+1)] = hash
 		fileInfo.ChunksMap[newName] = buffer
 		gossiper.FilesAndMetahashes.FilesLock.Lock()
 		gossiper.FilesAndMetahashes.AllChunks[newName] = buffer
 		gossiper.FilesAndMetahashes.FilesLock.Unlock()
-		// ioutil.WriteFile(chunkPath, buffer, os.ModeAppend)
 	}
 
 	fileInfo.Metafile = metaFile
@@ -70,12 +64,12 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) {
 	metahash := computeSha256(appendedMetaFile)
 	metahashString := hashToString(metahash)
 	fileInfo.MetaHash = metahash
+	fileInfo.Size = fileSize
 	gossiper.FilesAndMetahashes.FilesLock.Lock()
 	gossiper.FilesAndMetahashes.FileNamesToMetahashesMap[fname] = metahashString
 	gossiper.FilesAndMetahashes.MetaStringToFileInfo[metahashString] = fileInfo
 	gossiper.FilesAndMetahashes.MetaHashes[metahashString] = appendedMetaFile
 	gossiper.FilesAndMetahashes.FilesLock.Unlock()
-	// fmt.Println("Metahash is === ", metahashString)
-	// metafilePath, _ := filepath.Abs(constants.ShareFilesChunksFolder + "/" + metahashString)
-	// ioutil.WriteFile(metafilePath, appendedMetaFile, constants.FileMode)
+
+	return fileInfo
 }

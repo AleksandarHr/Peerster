@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AleksandarHrusanov/Peerster/blockchain"
 	"github.com/AleksandarHrusanov/Peerster/core"
 	"github.com/AleksandarHrusanov/Peerster/filehandling"
 	"github.com/AleksandarHrusanov/Peerster/helpers"
@@ -300,7 +301,20 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 		if !simpleMode {
 			if isClientFileIndexing(&message) {
 				//Handle messages from client to simply index a file
-				filehandling.HandleFileIndexing(gossiper, *message.File)
+				newFile := filehandling.HandleFileIndexing(gossiper, *message.File)
+
+				// Create and add new TLC to knownTLCs
+				blockPublish := blockchain.CreateBlockPublish(newFile.FileName, newFile.Size, newFile.MetaHash[:])
+				newTLC := blockchain.CreateTLCMessage(gossiper, *blockPublish)
+				addTLCToKnownTLCs(gossiper, *newTLC)
+				updateWant(gossiper, gossiper.Name)
+
+				// Pick a random address and send the tlc message
+				chosenAddr := ""
+				if len(knownPeers) > 0 {
+					chosenAddr = helpers.PickRandomInSlice(knownPeers)
+					sendTLC(newTLC, gossiper, chosenAddr)
+				}
 			} else if isClientRequestingDownload(&message) {
 				// Handle message from client to request a file download
 				filehandling.HandleClientDownloadRequest(gossiper, &message)
@@ -318,14 +332,14 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool) {
 					// helpers.PrintOutputSimpleMessageFromClient(message.Text, gossiper.KnownPeers)
 
 					// Add rumor to list of known rumors
-					gossiper.RumorIDLock.Lock()
-					gossiper.CurrentRumorID++
+					gossiper.MongeringIDLock.Lock()
+					gossiper.CurrentMongeringID++
 					newRumor := core.RumorMessage{
 						Origin: gossiper.Name,
-						ID:     gossiper.CurrentRumorID,
+						ID:     gossiper.CurrentMongeringID,
 						Text:   message.Text,
 					}
-					gossiper.RumorIDLock.Unlock()
+					gossiper.MongeringIDLock.Unlock()
 					addRumorToKnownRumors(gossiper, newRumor)
 					updateWant(gossiper, gossiper.Name)
 
