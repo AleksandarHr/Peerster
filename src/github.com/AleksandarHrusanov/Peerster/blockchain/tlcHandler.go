@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ func HandleTLCMessage(gossiper *core.Gossiper, tlc *core.TLCMessage, peerCount i
 	alreadySeen := addOrUpdateKnownTLC(gossiper, tlc)
 	if tlc.Confirmed == -1 {
 		// if receiving an unconfirmed tlc message
-		fmt.Println("Here")
 		helpers.PrintUnconfirmedGossip(tlc.Origin, tlc.TxBlock.Transaction.Name,
 			hex.EncodeToString(tlc.TxBlock.Transaction.MetafileHash), tlc.ID, tlc.TxBlock.Transaction.Size)
 
