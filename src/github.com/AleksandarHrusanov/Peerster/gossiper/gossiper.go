@@ -12,7 +12,7 @@ import (
 )
 
 // StartGossiper Start the gossiper
-func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *int, routeRumorPtr *int, nPtr *int, stubbornTimeout *int) {
+func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *int, routeRumorPtr *int, hw3ex2 *bool, nPtr *int, stubbornTimeout *int, ackHopLimit *int) {
 	rand.Seed(time.Now().UnixNano())
 	// Clean files= folders on startup
 	cleanFileFoldersOnStartup(constants.ShareFilesChunksFolder)
@@ -21,13 +21,13 @@ func StartGossiper(gossiperPtr *core.Gossiper, simplePtr *bool, antiEntropyPtr *
 
 	// Listen from client and peers
 	if !*simplePtr {
-		go clientListener(gossiperPtr, *simplePtr, *stubbornTimeout)
-		go peersListener(gossiperPtr, *simplePtr, *nPtr)
+		go clientListener(gossiperPtr, *simplePtr, *stubbornTimeout, *hw3ex2)
+		go peersListener(gossiperPtr, *simplePtr, *nPtr, *hw3ex2, uint32(*ackHopLimit))
 	} else {
 		// In simple mode there is no anti-entropy so no infinite loop
 		// to prevent the program to end
-		go clientListener(gossiperPtr, *simplePtr, *stubbornTimeout)
-		peersListener(gossiperPtr, *simplePtr, *nPtr)
+		go clientListener(gossiperPtr, *simplePtr, *stubbornTimeout, *hw3ex2)
+		peersListener(gossiperPtr, *simplePtr, *nPtr, *hw3ex2, uint32(*ackHopLimit))
 	}
 	defer gossiperPtr.Conn.Close()
 	defer gossiperPtr.LocalConn.Close()

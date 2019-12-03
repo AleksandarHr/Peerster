@@ -1,10 +1,8 @@
 package gossiper
 
 import (
-	"encoding/hex"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/AleksandarHrusanov/Peerster/blockchain"
 	"github.com/AleksandarHrusanov/Peerster/core"
@@ -15,7 +13,7 @@ import (
 
 // TODO: Break this function into shorter separate functions
 // Main peersListener function
-func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int) {
+func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int, hw3ex2 bool, ackHopLimit uint32) {
 	// Remove all timed-out or handled mongering statuses
 	go mongeringStatusRefresher(gossiper)
 
@@ -81,9 +79,9 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int) {
 			} else if gossipPacket.Private != nil {
 				// Handle incoming private message from another peer
 				handlePrivateMessage(gossiper, gossipPacket.Private)
-			} else if gossipPacket.TLCMessage != nil {
-				blockchain.HandleTLCMessage(gossiper, gossipPacket.TLCMessage, peerCount)
-			} else if gossipPacket.Ack != nil {
+			} else if gossipPacket.TLCMessage != nil && hw3ex2 {
+				blockchain.HandleTLCMessage(gossiper, gossipPacket.TLCMessage, peerCount, ackHopLimit)
+			} else if gossipPacket.Ack != nil && hw3ex2 {
 				blockchain.HandleTlcAck(gossiper, gossipPacket.Ack, peerCount)
 			} else if gossipPacket.Rumor != nil {
 				// Print RumorFromPeer output
@@ -98,7 +96,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int) {
 	}
 }
 
-func clientListener(gossiper *core.Gossiper, simpleMode bool, stubbornTimeout int) {
+func clientListener(gossiper *core.Gossiper, simpleMode bool, stubbornTimeout int, hw3ex2 bool) {
 	for {
 		gossiper.PeersLock.Lock()
 		knownPeers := gossiper.KnownPeers
@@ -132,36 +130,9 @@ func clientListener(gossiper *core.Gossiper, simpleMode bool, stubbornTimeout in
 				//Handle messages from client to simply index a file
 				newFile := filehandling.HandleFileIndexing(gossiper, *message.File)
 
-				go func(gossiper *core.Gossiper, newFile *core.FileInformation) {
-					// Create and add new TLC to knownTLCs
-					blockPublish := blockchain.CreateBlockPublish(newFile.FileName, newFile.Size, newFile.MetaHash[:])
-					newTLC := blockchain.CreateTLCMessage(gossiper, *blockPublish)
-					blockchain.AddTLCToKnownTLCs(gossiper, newTLC)
-					blockchain.AddOwnTLC(gossiper, newTLC)
-
-					for {
-						ownTlc := gossiper.MyTLCs[newTLC.ID]
-						updatedTlc := ownTlc.TLC
-						if updatedTlc.Confirmed == -1 {
-							// If stubbornTimeout passed and TLC message is still unconfirmed
-							// simply send to a random peer
-							packetToSend := core.GossipPacket{TLCMessage: &updatedTlc}
-							packetBytes, err := protobuf.Encode(&packetToSend)
-							helpers.HandleErrorFatal(err)
-							chosenAddr := ""
-							if len(knownPeers) > 0 {
-								chosenAddr = helpers.PickRandomInSlice(knownPeers)
-								core.ConnectAndSend(chosenAddr, gossiper.Conn, packetBytes)
-								helpers.PrintUnconfirmedGossip(gossiper.Name, newFile.FileName,
-									hex.EncodeToString(newFile.MetaHash[:]), updatedTlc.ID, updatedTlc.TxBlock.Transaction.Size)
-							}
-							time.Sleep(time.Duration(stubbornTimeout) * time.Second)
-						} else {
-							break
-						}
-					}
-				}(gossiper, newFile)
-
+				if hw3ex2 {
+					go blockchain.StubbornlySendTLC(gossiper, newFile, stubbornTimeout)
+				}
 				// monger tlc message just like a rumor message
 				// updateWant(gossiper, gossiper.Name)
 				//

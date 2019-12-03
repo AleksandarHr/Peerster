@@ -115,8 +115,12 @@ func PrintSendingAck(origin string, id uint32) {
 	fmt.Printf("SENDING ACK origin %s ID %d\n", origin, id)
 }
 
-func PrintReBroadcastId(id uint32, witnesses string) {
-	fmt.Printf("RE-BROADCAST ID %d WITNESSES %s\n", id, witnesses)
+func PrintReBroadcastId(id uint32, witnessesMap map[string]bool) {
+	witnessesSlice := make([]string, 0)
+	for w, _ := range witnessesMap {
+		witnessesSlice = append(witnessesSlice, w)
+	}
+	fmt.Printf("RE-BROADCAST ID %d WITNESSES %s\n", id, strings.Join(witnessesSlice, ","))
 }
 
 func PrintConfirmedGossip(origin, name, metahash string, id uint32, size int64) {

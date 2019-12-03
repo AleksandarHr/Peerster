@@ -12,7 +12,7 @@ func CreateTLCMessage(gossiper *core.Gossiper, txBlock core.BlockPublish) *core.
 	gossiper.MongeringIDLock.Lock()
 	gossiper.CurrentMongeringID++
 	gossiper.TlcIDs[gossiper.CurrentMongeringID] = true
-	tlc := &core.TLCMessage{Origin: gossiper.Name, ID: gossiper.CurrentMongeringID, Confirmed: -1}
+	tlc := &core.TLCMessage{Origin: gossiper.Name, ID: gossiper.CurrentMongeringID, Confirmed: -1, TxBlock: txBlock}
 	gossiper.MongeringIDLock.Unlock()
 
 	return tlc
