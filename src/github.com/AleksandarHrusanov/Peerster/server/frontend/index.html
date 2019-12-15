@@ -10,10 +10,10 @@
                 var divPeer = document.getElementById("peer_list_id")
                 var divChat = document.getElementById("chat_id")
                 var divOrigins = document.getElementById("origins_id")
-                // var divFiles = document.getElementById("files_list_id")
+                var divFiles = document.getElementById("files_list_id")
                 divPeer.scrollTop = divPeer.scrollHeight;
                 divOrigins.scrollTop = divOrigins.scrollHeight;
-                // divFiles.scrollTop = divFiles.scrollHeight;
+                divFiles.scrollTop = divFiles.scrollHeight;
                 divChat.scrollTop = divChat.scrollHeight;
             }
 
@@ -80,6 +80,25 @@
                 });
             }
 
+            function searchFile() {
+              $("#search_file_button_id").click(function(){
+                var keywords = document.getElementById("search_keywords_id").value;
+                document.getElementById("search_keywords_id").value = "";
+                console.log(keywords);
+                if (keywords != "") {
+                  $.ajax({
+                    url: "/search",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(keywords),
+                    dataType: "josn",
+                  });
+                  refreshSearch(true);
+                }
+                keepScrollBottom();
+              });
+            }
+
             function clickDownloadFile() {
               $("#download_file_button_id").click(function() {
                 var dest = document.getElementById("dest_node_id").value;
@@ -88,9 +107,9 @@
                 document.getElementById("save_as_id").value = "";
                 var fileHash = document.getElementById("request_hash_id").value;
                 document.getElementById("request_hash_id").value = "";
-                console.log(dest)
-                console.log(saveAs)
-                console.log(fileHash)
+                // console.log(dest)
+                // console.log(saveAs)
+                // console.log(fileHash)
                 if (dest != "" && saveAs != "" && fileHash != "") {
                   $.ajax({
                     url: "/download",
@@ -191,6 +210,20 @@
                 });
             }
 
+            function refreshSearch(keepScrollDown) {
+              $.getJSON("/search", function(data) {
+                  data = data + "";
+                  var itemArray = data.split(",");
+                  $("#matches_id").html("");
+                  for (var i = 0; i < itemArray.length; i++) {
+                    $("#matches_id").append("<button class='link'>" + itemArray[i] + "</button>" + "<br>");
+                  }
+                  if (keepScrollDown) {
+                      keepScrollBottom();
+                  }
+              });
+            }
+
             function refreshPrivateMessages(keepScrollDown) {
                 $.getJSON("/private", function(data) {
                     $("#private_id").html("");
@@ -224,6 +257,8 @@
                 refreshFiles(false);
                 // Private Messages
                 refreshPrivateMessages(false);
+                // FileSearchMatch
+                refreshSearch(false);
             }
 
             // Refresh chat and nodes from server
@@ -371,19 +406,56 @@
                   </table>
               </td>
               <td>
-              <form>
-                Destination Node:<br>
-                <input type="text" id="dest_node_id"> <br>
-                Save As:<br>
-                <input type="text" id="save_as_id"> <br>
-                Request Hash:<br>
-                <input type="text" id="request_hash_id"> <br>
-              </form>
-              <button id="download_file_button_id">Download File</button>
-              <script>
-                clickDownloadFile();
-              </script>
-            </td>
+                <form>
+                  Destination Node:<br>
+                  <input type="text" id="dest_node_id"> <br>
+                  Save As:<br>
+                  <input type="text" id="save_as_id"> <br>
+                  Request Hash:<br>
+                  <input type="text" id="request_hash_id"> <br>
+                </form>
+                <button id="download_file_button_id">Download File</button>
+                <script>
+                  clickDownloadFile();
+                </script>
+                <form>
+                  Search Keywords:<br>
+                  <input type="text" id="search_keywords_id"> <br>
+                </form>
+                <button id="search_file_button_id">Search Files</button>
+                <script>
+                  searchFile();
+                  </script>
+              </td>
+              <td bgcolor="#eee" width="15%" height="250">
+                  <table>
+                      <div id="matches_id" style="height:250px;
+                      border:1px solid #ccc;
+                      font:16px/26px Georgia, Garamond, Serif;
+                      overflow:auto;">
+                      </div>
+                      <script>
+                        document.getElementById('matches_id').addEventListener('click', function(event){
+                          trgt = event.target
+                          if (trgt.tagName === "BUTTON") {
+                            chosenMatch = trgt.innerText
+                            console.log(chosenMatch)
+                            if (chosenMatch != "") {
+                                // Send to server and refresh list
+                                $.ajax({
+                                    url: "/implicit_download",
+                                    type: "POST",
+                                    contentType: "application/json",
+                                    data: JSON.stringify(chosenMatch),
+                                    dataType: "json",
+                                });
+                                refreshFiles(true);
+                            }
+                          }
+                        });
+                      </script>
+                  </table>
+              </td>
             </tr>
 
             <tr>

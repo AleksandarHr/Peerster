@@ -70,6 +70,5 @@ func HandleFileIndexing(gossiper *core.Gossiper, fname string) *core.FileInforma
 	gossiper.FilesAndMetahashes.MetaStringToFileInfo[metahashString] = fileInfo
 	gossiper.FilesAndMetahashes.MetaHashes[metahashString] = appendedMetaFile
 	gossiper.FilesAndMetahashes.FilesLock.Unlock()
-
 	return fileInfo
 }

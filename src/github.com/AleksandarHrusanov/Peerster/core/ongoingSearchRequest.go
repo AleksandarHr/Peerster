@@ -19,6 +19,7 @@ type SafeOngoingFileSearching struct {
 	IsOngoing                 bool
 	// maps from filename to FileSearchMatch struct
 	MatchesFound      map[string]*FileSearchMatch
+	MatchesFileNames  []string
 	SearchRequestLock sync.Mutex
 }
 
@@ -26,9 +27,10 @@ func CreateSafeOngoingFileSearching() *SafeOngoingFileSearching {
 	searchChanel := make(chan *SearchReply)
 	downloadChanel := make(chan *DataReply)
 	matches := make(map[string]*FileSearchMatch)
+	names := make([]string, 0)
 
 	fileSearch := &SafeOngoingFileSearching{SearchReplyChanel: searchChanel, SearchDownloadReplyChanel: downloadChanel,
-		MatchesFound: matches, IsOngoing: true}
+		MatchesFound: matches, MatchesFileNames: names, IsOngoing: true}
 
 	return fileSearch
 }

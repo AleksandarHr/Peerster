@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
@@ -33,6 +34,16 @@ func (g *Gossiper) GetLocalAddr() string {
 // GetAllRumors Get the rumors known by the gossiper
 func (g *Gossiper) GetAllRumors() []RumorMessage {
 	return g.KnownRumors
+}
+
+// GetAllRumors Get the rumors known by the gossiper
+func (g *Gossiper) GetAllFullyMatchedFilenames() []string {
+	return g.OngoingFileSearch.MatchesFileNames
+}
+
+func (g *Gossiper) GetMetafileHashByName(fname string) string {
+	finfo := g.OngoingFileSearch.MatchesFound[fname]
+	return hex.EncodeToString(finfo.Metahash)
 }
 
 // GetAllFileNames - return an array of filenames shared/downloaded by the gossiper

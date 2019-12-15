@@ -163,12 +163,13 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 					if infoSoFar.ChunkCount != uint64(len(infoSoFar.LocationOfChunks)) {
 						// if we haven't found all the chunks of this file, then add more info
 						for _, chunk := range res.ChunkMap {
-							if _, haveIt := infoSoFar.LocationOfChunks[chunk]; !haveIt {
-								// if we don't have info about this chunk, add the reply's origin
-								peersSoFar := infoSoFar.LocationOfChunks[chunk]
-								peersSoFar = append(peersSoFar, searchReply.Origin)
-								infoSoFar.LocationOfChunks[chunk] = peersSoFar
+							peersSoFar := make([]string, 0)
+							if _, haveIt := infoSoFar.LocationOfChunks[chunk]; haveIt {
+								// if we have info about this chunk, add the reply's origin
+								peersSoFar = infoSoFar.LocationOfChunks[chunk]
 							}
+							peersSoFar = append(peersSoFar, searchReply.Origin)
+							infoSoFar.LocationOfChunks[chunk] = peersSoFar
 						}
 					}
 					// save updated information
@@ -183,6 +184,10 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 						newMatch.LocationOfChunks[ch] = peersSoFar
 					}
 					gossiper.OngoingFileSearch.MatchesFound[res.FileName] = newMatch
+				}
+				if gossiper.OngoingFileSearch.MatchesFound[res.FileName].ChunkCount ==
+					uint64(len(gossiper.OngoingFileSearch.MatchesFound[res.FileName].LocationOfChunks)) {
+					gossiper.OngoingFileSearch.MatchesFileNames = append(gossiper.OngoingFileSearch.MatchesFileNames, res.FileName)
 				}
 			}
 			// at this point, check if we have reached two full matches

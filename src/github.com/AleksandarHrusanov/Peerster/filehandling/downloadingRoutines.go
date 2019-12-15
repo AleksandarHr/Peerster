@@ -2,6 +2,7 @@ package filehandling
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/rand"
 	"strings"
 	"time"
@@ -60,6 +61,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 	// pick a random peer to request the metafile from
 	randomPeer := pickRandomPeerToRequestChunk(match, nextIdx)
 	request := createDataRequest(gossiper.Name, randomPeer, match.Metahash)
+	fInfo.MetaHash = convertSliceTo32Fixed(match.Metahash)
 	forwardDataRequest(gossiper, request)
 
 	// in an infinite for-loop
@@ -123,6 +125,7 @@ func initiateFilesearchDownloading(gossiper *core.Gossiper, match *core.FileSear
 						if nextIdx == match.ChunkCount {
 							helpers.PrintReconstructedFile(fname)
 							continueDownloading = false
+							gossiper.FilesAndMetahashes.FileNamesToMetahashesMap[fInfo.FileName] = hex.EncodeToString(fInfo.MetaHash[:])
 							reconstructAndSaveFullyDownloadedFile(fInfo)
 						}
 					}
@@ -220,7 +223,9 @@ func initiateRegularDownloading(gossiper *core.Gossiper, downloadFrom string, fn
 								helpers.PrintReconstructedFile(fname)
 								state.DownloadFinished = true
 								continueDownloading = false
-								reconstructAndSaveFullyDownloadedFile(state.FileInfo)
+								fInfo := state.FileInfo
+								gossiper.FilesAndMetahashes.FileNamesToMetahashesMap[fInfo.FileName] = hex.EncodeToString(fInfo.MetaHash[:])
+								reconstructAndSaveFullyDownloadedFile(fInfo)
 								// removeState(gossiper.DownloadingStates[downloadFrom])
 								// delete(gossiper.DownloadingStates, downloadFrom)
 							}
@@ -259,6 +264,9 @@ func pickRandomPeerToRequestChunk(match *core.FileSearchMatch, chunkIdx uint64) 
 		peerSet = allChunkLocations[(rand.Uint64() % match.ChunkCount)]
 	}
 
+	if len(peerSet) == 0 {
+		return ""
+	}
 	// pick a random peer to request chunk with id = chunkIdx
 	randomPeerIdx := rand.Intn(len(peerSet))
 	return peerSet[randomPeerIdx]

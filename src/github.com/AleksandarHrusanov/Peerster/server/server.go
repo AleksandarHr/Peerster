@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -58,6 +59,8 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		// Get the message
 		reqBody, err := ioutil.ReadAll(r.Body)
 		helpers.HandleErrorFatal(err)
+		empty := ""
+		zero := uint64(0)
 		text := ""
 		dest := ""
 		fileToShare := ""
@@ -66,7 +69,7 @@ func (m *handlerMaker) messageHandler(w http.ResponseWriter, r *http.Request) {
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, nil, nil)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, &empty, &zero)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
@@ -99,6 +102,8 @@ func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Requ
 		reqBody, err := ioutil.ReadAll(r.Body)
 		helpers.HandleErrorFatal(err)
 		var msg []string
+		empty := ""
+		zero := uint64(0)
 		fileToShare := ""
 		hashRequest := ""
 		err = json.Unmarshal(reqBody, &msg)
@@ -106,7 +111,7 @@ func (m *handlerMaker) privateMessageHandler(w http.ResponseWriter, r *http.Requ
 
 		// Use the client to send the message to the gossiper
 		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
-			core.ClientConnectAndSend(goss.GetLocalAddr(), &msg[0], &msg[1], &fileToShare, &hashRequest, nil, nil)
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &msg[0], &msg[1], &fileToShare, &hashRequest, &empty, &zero)
 		}
 
 		// Return json of rumors
@@ -158,13 +163,15 @@ func (m *handlerMaker) shareFilesHandler(w http.ResponseWriter, r *http.Request)
 		helpers.HandleErrorFatal(err)
 		text := ""
 		dest := ""
+		empty := ""
+		zero := uint64(0)
 		fileToShare := ""
 		hashRequest := ""
 		err = json.Unmarshal(reqBody, &fileToShare)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
-		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, nil, nil)
+		core.ClientConnectAndSend(goss.GetLocalAddr(), &text, &dest, &fileToShare, &hashRequest, &empty, &zero)
 
 		// Return json of rumors
 		time.Sleep(50 * time.Millisecond)
@@ -189,13 +196,70 @@ func (m *handlerMaker) downloadFilesHandler(w http.ResponseWriter, r *http.Reque
 		// -dest, -file, -request
 		var msg []string
 		txt := ""
+		empty := ""
+		zero := uint64(0)
 		err = json.Unmarshal(reqBody, &msg)
 		helpers.HandleErrorFatal(err)
 
 		// Use the client to send the message to the gossiper
 		if strings.Compare(msg[0], "") != 0 && strings.Compare(msg[1], "") != 0 {
-			core.ClientConnectAndSend(goss.GetLocalAddr(), &txt, &msg[0], &msg[1], &msg[2], nil, nil)
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &txt, &msg[0], &msg[1], &msg[2], &empty, &zero)
 		}
+	}
+}
+
+// Handle implicit download
+func (m *handlerMaker) implicitDownloadFilesHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodPost:
+		reqBody, err := ioutil.ReadAll(r.Body)
+		helpers.HandleErrorFatal(err)
+		// -dest, -file, -request
+		var matchedFile string
+		empty := ""
+		zero := uint64(0)
+		err = json.Unmarshal(reqBody, &matchedFile)
+		helpers.HandleErrorFatal(err)
+		hash := goss.GetMetafileHashByName(matchedFile)
+
+		fmt.Printf("Chosen file = %s :: metafile hash = %s\n", matchedFile, hash)
+		// Use the client to send the message to the gossiper
+		if strings.Compare(matchedFile, "") != 0 && strings.Compare(hash, "") != 0 {
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &empty, &empty, &matchedFile, &hash, &empty, &zero)
+		}
+	}
+}
+
+// Handle node requests
+func (m *handlerMaker) searchFile(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodPost:
+		reqBody, err := ioutil.ReadAll(r.Body)
+		helpers.HandleErrorFatal(err)
+		// -dest, -file, -request
+		empty := ""
+		zero := uint64(0)
+		keywords := ""
+		err = json.Unmarshal(reqBody, &keywords)
+		helpers.HandleErrorFatal(err)
+
+		// Use the client to send the message to the gossiper
+		if strings.Compare(keywords, "") != 0 {
+			core.ClientConnectAndSend(goss.GetLocalAddr(), &empty, &empty, &empty, &empty, &keywords, &zero)
+		}
+	case http.MethodGet:
+		// Return json of matchedFileNames
+		matchedFiles := goss.GetAllFullyMatchedFilenames()
+		matchedFilesJSON, err := json.Marshal(matchedFiles)
+		helpers.HandleErrorFatal(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(matchedFilesJSON)
 	}
 }
 
@@ -250,6 +314,8 @@ func StartServer(g *core.Gossiper) {
 	router.HandleFunc("/share", handlerMaker.shareFilesHandler)
 	router.HandleFunc("/private", handlerMaker.privateMessageHandler)
 	router.HandleFunc("/download", handlerMaker.downloadFilesHandler)
+	router.HandleFunc("/implicit_download", handlerMaker.implicitDownloadFilesHandler)
+	router.HandleFunc("/search", handlerMaker.searchFile)
 
 	// Listen for http requests and serve them
 	log.Fatal(http.ListenAndServe(defaultServerPort, router))
