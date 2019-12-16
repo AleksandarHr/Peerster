@@ -1,11 +1,13 @@
 package server
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,12 +136,43 @@ func (m *handlerMaker) originsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		// Return json of knownpeers
 		msgKnownOrigins := goss.GetAllKnownOrigins()
-		msgKnownOriginsJSON, err := json.Marshal(msgKnownOrigins)
-		helpers.HandleErrorFatal(err)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(msgKnownOriginsJSON)
+		if len(msgKnownOrigins) > 0 {
+			msgKnownOriginsJSON, err := json.Marshal(msgKnownOrigins)
+			helpers.HandleErrorFatal(err)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(msgKnownOriginsJSON)
+		}
+	}
+}
+
+// Handle confirmed tlcs
+func (m *handlerMaker) confirmedTLCsHandler(w http.ResponseWriter, r *http.Request) {
+	goss := m.G
+
+	switch r.Method {
+	case http.MethodGet:
+		confirmedTLCs := goss.GetConfirmedTLCs()
+		tlcsToPrint := make([]string, 0)
+		for _, tlc := range confirmedTLCs {
+			origin := tlc.Origin
+			name := tlc.TxBlock.Transaction.Name
+			metahash := hex.EncodeToString(tlc.TxBlock.Transaction.MetafileHash)
+			id := tlc.ID
+			size := tlc.TxBlock.Transaction.Size
+			toPrint := "CONFIRMED GOSSIP origin " + origin + " ID " + fmt.Sprint(id) + " file name " + name + " size " + strconv.FormatInt(size, 10) + " metahash " + metahash
+			tlcsToPrint = append(tlcsToPrint, toPrint)
+		}
+
+		if len(tlcsToPrint) > 0 {
+			tlcsToPrintJSON, err := json.Marshal(tlcsToPrint)
+			helpers.HandleErrorFatal(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(tlcsToPrintJSON)
+		}
 	}
 }
 
@@ -224,7 +257,6 @@ func (m *handlerMaker) implicitDownloadFilesHandler(w http.ResponseWriter, r *ht
 		helpers.HandleErrorFatal(err)
 		hash := goss.GetMetafileHashByName(matchedFile)
 
-		fmt.Printf("Chosen file = %s :: metafile hash = %s\n", matchedFile, hash)
 		// Use the client to send the message to the gossiper
 		if strings.Compare(matchedFile, "") != 0 && strings.Compare(hash, "") != 0 {
 			core.ClientConnectAndSend(goss.GetLocalAddr(), &empty, &empty, &matchedFile, &hash, &empty, &zero)
@@ -254,12 +286,15 @@ func (m *handlerMaker) searchFile(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		// Return json of matchedFileNames
 		matchedFiles := goss.GetAllFullyMatchedFilenames()
-		matchedFilesJSON, err := json.Marshal(matchedFiles)
-		helpers.HandleErrorFatal(err)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(matchedFilesJSON)
+		if len(matchedFiles) > 0 {
+			matchedFilesJSON, err := json.Marshal(matchedFiles)
+			helpers.HandleErrorFatal(err)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(matchedFilesJSON)
+		}
 	}
 }
 
@@ -316,6 +351,7 @@ func StartServer(g *core.Gossiper) {
 	router.HandleFunc("/download", handlerMaker.downloadFilesHandler)
 	router.HandleFunc("/implicit_download", handlerMaker.implicitDownloadFilesHandler)
 	router.HandleFunc("/search", handlerMaker.searchFile)
+	router.HandleFunc("/confirmed_tlcs", handlerMaker.confirmedTLCsHandler)
 
 	// Listen for http requests and serve them
 	log.Fatal(http.ListenAndServe(defaultServerPort, router))

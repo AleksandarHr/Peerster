@@ -8,13 +8,15 @@
         <script>
             function keepScrollBottom() {
                 var divPeer = document.getElementById("peer_list_id")
-                var divChat = document.getElementById("chat_id")
+                var divConfirmedTLCs = document.getElementById("chat_id")
+                var divChat = document.getElementById("confirmed_tlcs_id")
                 var divOrigins = document.getElementById("origins_id")
                 var divFiles = document.getElementById("files_list_id")
                 divPeer.scrollTop = divPeer.scrollHeight;
                 divOrigins.scrollTop = divOrigins.scrollHeight;
                 divFiles.scrollTop = divFiles.scrollHeight;
                 divChat.scrollTop = divChat.scrollHeight;
+                divConfirmedTLCs.scrollTop = divConfirmedTLCs.scrollHeight;
             }
 
             function clickShareFileButton() {
@@ -210,13 +212,27 @@
                 });
             }
 
+            function refreshConfirmedTLCs(keepScrollDown) {
+                $.getJSON("/confirmed_tlcs", function(data) {
+                    $("#confirmed_tlcs_id").html("");
+                    data = data + "";
+                    var itemArray = data.split(",");
+                    for (var i = 0; i < itemArray.length; i++) {
+                      $("#confirmed_tlcs_id").append(i + ". " + itemArray[i] + "<br>");
+                    }
+                    if (keepScrollDown) {
+                        keepScrollBottom();
+                    }
+                });
+            }
+
             function refreshSearch(keepScrollDown) {
               $.getJSON("/search", function(data) {
                   data = data + "";
                   var itemArray = data.split(",");
-                  $("#matches_id").html("");
+                  $("#matches_list_id").html("");
                   for (var i = 0; i < itemArray.length; i++) {
-                    $("#matches_id").append("<button class='link'>" + itemArray[i] + "</button>" + "<br>");
+                    $("#matches_list_id").append("<button class='link'>" + itemArray[i] + "</button>" + "<br>");
                   }
                   if (keepScrollDown) {
                       keepScrollBottom();
@@ -259,6 +275,8 @@
                 refreshPrivateMessages(false);
                 // FileSearchMatch
                 refreshSearch(false);
+                // TLCs
+                refreshConfirmedTLCs(false);
             }
 
             // Refresh chat and nodes from server
@@ -287,7 +305,7 @@
             <tr valign="top">
 
                 <!--Chat-->
-                <td bgcolor="#eee" width="35%" height="250">
+                <td bgcolor="#eee" width="30%" height="250">
                     <table>
                         <div id="chat_id" style="height:250px;
                         border:1px solid #ccc;
@@ -298,7 +316,7 @@
                 </td>
 
                 <!--Peer list-->
-                <td bgcolor="#eee" width="15%" height="250">
+                <td bgcolor="#eee" width="20%" height="250">
                     <table>
                         <div id="peer_list_id" style="height:250px;
                         border:1px solid #ccc;
@@ -309,7 +327,7 @@
                 </td>
 
                 <!--Private Messages-->
-                <td bgcolor="#eee" width="35%" height="250">
+                <td bgcolor="#eee" width="25%" height="250">
                     <table>
                         <div id="private_id" style="height:250px;
                         border:1px solid #ccc;
@@ -320,7 +338,7 @@
                 </td>
 
                 <!--Known Origins-->
-                <td bgcolor="#eee" width="15%" height="250">
+                <td bgcolor="#eee" width="25%" height="250">
                     <table>
                         <div id="origins_id" style="height:250px;
                         border:1px solid #ccc;
@@ -429,13 +447,13 @@
               </td>
               <td bgcolor="#eee" width="15%" height="250">
                   <table>
-                      <div id="matches_id" style="height:250px;
+                      <div id="matches_list_id" style="height:250px;
                       border:1px solid #ccc;
                       font:16px/26px Georgia, Garamond, Serif;
                       overflow:auto;">
                       </div>
                       <script>
-                        document.getElementById('matches_id').addEventListener('click', function(event){
+                        document.getElementById('matches_list_id').addEventListener('click', function(event){
                           trgt = event.target
                           if (trgt.tagName === "BUTTON") {
                             chosenMatch = trgt.innerText
@@ -455,6 +473,15 @@
                         });
                       </script>
                   </table>
+              </td>
+              <td bgcolor="#eee" width="25%" height="250">
+                <table>
+                    <div id="confirmed_tlcs_id" style="height:250px;
+                    border:1px solid #ccc;
+                    font:16px/26px Georgia, Garamond, Serif;
+                    overflow:auto;">
+                    </div>
+                </table>
               </td>
             </tr>
 

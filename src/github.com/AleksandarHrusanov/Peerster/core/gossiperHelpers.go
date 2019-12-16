@@ -36,9 +36,29 @@ func (g *Gossiper) GetAllRumors() []RumorMessage {
 	return g.KnownRumors
 }
 
-// GetAllRumors Get the rumors known by the gossiper
+// GetAllFullyMatchedFilenames Get the rumors known by the gossiper
 func (g *Gossiper) GetAllFullyMatchedFilenames() []string {
 	return g.OngoingFileSearch.MatchesFileNames
+}
+
+// GetConfirmedTLCs Return all known confirmed TLCs
+func (g *Gossiper) GetConfirmedTLCs() []TLCMessage {
+	tlcs := make([]TLCMessage, 0)
+	g.TLCLock.Lock()
+	knownTLCs := g.KnownTLCs
+	g.TLCLock.Unlock()
+
+	for _, tlc := range knownTLCs {
+		if tlc.Confirmed != -1 {
+			tlcs = append(tlcs, tlc)
+		}
+	}
+
+	sort.Slice(tlcs, func(i, j int) bool {
+		return tlcs[i].ID < tlcs[j].ID
+	})
+
+	return tlcs
 }
 
 func (g *Gossiper) GetMetafileHashByName(fname string) string {
