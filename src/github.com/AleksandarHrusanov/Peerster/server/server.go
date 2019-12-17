@@ -256,7 +256,6 @@ func (m *handlerMaker) implicitDownloadFilesHandler(w http.ResponseWriter, r *ht
 		err = json.Unmarshal(reqBody, &matchedFile)
 		helpers.HandleErrorFatal(err)
 		hash := goss.GetMetafileHashByName(matchedFile)
-
 		// Use the client to send the message to the gossiper
 		if strings.Compare(matchedFile, "") != 0 && strings.Compare(hash, "") != 0 {
 			core.ClientConnectAndSend(goss.GetLocalAddr(), &empty, &empty, &matchedFile, &hash, &empty, &zero)

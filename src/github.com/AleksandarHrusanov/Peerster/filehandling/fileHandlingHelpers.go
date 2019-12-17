@@ -99,12 +99,11 @@ func reconstructAndSaveFullyDownloadedFile(fileInfo *core.FileInformation) {
 	// create a file
 	fileData := make([]byte, 0)
 	numChunks := len(fileInfo.Metafile)
-	for i := uint32(0); i < uint32(numChunks); i++ {
+	for i := uint32(1); i <= uint32(numChunks); i++ {
 		chunkHash := fileInfo.Metafile[i]
 		chunk := fileInfo.ChunksMap[hashToString(chunkHash)]
 		fileData = append(fileData, chunk[:]...)
 	}
-
 	// create and write to file
 	path, _ := filepath.Abs(constants.DownloadedFilesFolder)
 	filePath, _ := filepath.Abs(path + "/" + fileInfo.FileName)

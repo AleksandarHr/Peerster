@@ -80,7 +80,7 @@ func peersListener(gossiper *core.Gossiper, simpleMode bool, peerCount int, hw3e
 				// Handle incoming private message from another peer
 				handlePrivateMessage(gossiper, gossipPacket.Private)
 			} else if gossipPacket.TLCMessage != nil && hw3ex2 {
-				blockchain.HandleTLCMessage(gossiper, gossipPacket.TLCMessage, peerCount, ackHopLimit)
+				blockchain.HandleTLCMessage(gossiper, gossipPacket.TLCMessage, peerCount, ackHopLimit, fromAddr)
 			} else if gossipPacket.Ack != nil && hw3ex2 {
 				blockchain.HandleTlcAck(gossiper, gossipPacket.Ack, peerCount)
 			} else if gossipPacket.Rumor != nil {

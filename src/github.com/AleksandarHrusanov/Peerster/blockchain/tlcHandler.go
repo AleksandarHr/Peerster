@@ -11,7 +11,7 @@ import (
 	"github.com/dedis/protobuf"
 )
 
-func HandleTLCMessage(gossiper *core.Gossiper, tlc *core.TLCMessage, peerCount int, ackHopLimit uint32) {
+func HandleTLCMessage(gossiper *core.Gossiper, tlc *core.TLCMessage, peerCount int, ackHopLimit uint32, fromAddr string) {
 	// add TLC to knownTLCs if it is new
 	// TODO: Check if txn is valid
 	alreadySeen := addOrUpdateKnownTLC(gossiper, tlc)
@@ -35,14 +35,14 @@ func HandleTLCMessage(gossiper *core.Gossiper, tlc *core.TLCMessage, peerCount i
 			if res == 1 {
 				// send to a random peer
 				if len(knownPeers) > 0 {
-					chosenAddr := helpers.PickRandomInSlice(knownPeers)
+					chosenAddr := helpers.PickRandomInSliceDifferentFrom(knownPeers, fromAddr)
 					core.ConnectAndSend(chosenAddr, gossiper.Conn, packetBytes)
 				}
 			}
 		} else {
 			// send to a random peer
 			if len(knownPeers) > 0 {
-				chosenAddr := helpers.PickRandomInSlice(knownPeers)
+				chosenAddr := helpers.PickRandomInSliceDifferentFrom(knownPeers, fromAddr)
 				core.ConnectAndSend(chosenAddr, gossiper.Conn, packetBytes)
 			}
 
@@ -113,6 +113,7 @@ func HandleTlcAck(gossiper *core.Gossiper, ack *core.TLCAck, peerCount int) {
 			confirmedTlc := ownTlc.TLC
 
 			// Assign confirmed TLC's Confirmed field to the original TLC message ID
+			shouldResend := confirmedTlc.Confirmed == -1
 			confirmedTlc.Confirmed = int(confirmedTlc.ID)
 
 			// Assign confirmed TLC's ID to next available mongering ID
@@ -133,7 +134,7 @@ func HandleTlcAck(gossiper *core.Gossiper, ack *core.TLCAck, peerCount int) {
 			gossiper.PeersLock.Unlock()
 
 			// send to a random peer
-			if len(knownPeers) > 0 {
+			if len(knownPeers) > 0 && shouldResend {
 				chosenAddr := helpers.PickRandomInSlice(knownPeers)
 				helpers.PrintReBroadcastId(confirmedTlc.ID, ownTlc.Witnesses)
 				core.ConnectAndSend(chosenAddr, gossiper.Conn, packetBytes)

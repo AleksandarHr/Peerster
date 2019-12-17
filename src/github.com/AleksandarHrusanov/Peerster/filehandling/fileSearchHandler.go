@@ -187,7 +187,7 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 				}
 				if gossiper.OngoingFileSearch.MatchesFound[res.FileName].ChunkCount ==
 					uint64(len(gossiper.OngoingFileSearch.MatchesFound[res.FileName].LocationOfChunks)) {
-					gossiper.OngoingFileSearch.MatchesFileNames = append(gossiper.OngoingFileSearch.MatchesFileNames, res.FileName)
+					addNewMatchedFileName(gossiper, res.FileName)
 				}
 			}
 			// at this point, check if we have reached two full matches
@@ -214,6 +214,18 @@ func initiateFileSearching(gossiper *core.Gossiper, budget *uint64, searchKeywor
 //////////                   HELPERS                             //////////
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
+
+func addNewMatchedFileName(gossiper *core.Gossiper, fname string) {
+	contains := false
+	for _, fn := range gossiper.OngoingFileSearch.MatchesFileNames {
+		if strings.Compare(fn, fname) == 0 {
+			contains = true
+		}
+	}
+	if !contains {
+		gossiper.OngoingFileSearch.MatchesFileNames = append(gossiper.OngoingFileSearch.MatchesFileNames, fname)
+	}
+}
 
 func forwardSearchReply(gossiper *core.Gossiper, msg *core.SearchReply) {
 	if msg.HopLimit == 0 {

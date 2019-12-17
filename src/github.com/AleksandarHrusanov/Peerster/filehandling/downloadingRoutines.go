@@ -254,6 +254,7 @@ func initiateRegularDownloading(gossiper *core.Gossiper, downloadFrom string, fn
 
 func pickRandomPeerToRequestChunk(match *core.FileSearchMatch, chunkIdx uint64) string {
 	allChunkLocations := match.LocationOfChunks
+
 	var peerSet []string
 	rand.Seed(time.Now().UnixNano())
 
@@ -261,7 +262,11 @@ func pickRandomPeerToRequestChunk(match *core.FileSearchMatch, chunkIdx uint64) 
 		peerSet = allChunkLocations[chunkIdx]
 	} else {
 		// pick a random peer to request metafile
-		peerSet = allChunkLocations[(rand.Uint64() % match.ChunkCount)]
+		myRand := rand.Uint64() % match.ChunkCount
+		if match.ChunkCount == uint64(1) {
+			myRand = uint64(1)
+		}
+		peerSet = allChunkLocations[myRand]
 	}
 
 	if len(peerSet) == 0 {
