@@ -28,6 +28,33 @@ Here Peerster is enabled to search files by keywords, using an _expanding-ring f
 Peerster builds a blockchain of shared files to ensure a globally agreed on name-to-metahash mapping in order to protect against adversarial peers. Whenever a node wants to share a file, it sends a publish block with the file name, file size, and metafile hash and waits for a majority confirmation. <br>
 **NOTE:** At this point, the number of peers in the network is fixed and known (e.g. it is assumed that no peers join or leave/drop)
 
+# Usage
+To run the client, you must execute the _./Peerster_ file_ with the following flags:
+* **name** - the name of the peer
+* **UIPort** - the port number for the GUI
+* **gossipAddr** - the address of the peer in the form ip:port
+* **[peers]** - comma separated addresses of known peers in the form ip:port
+* **[antiEntropy]** - time in seconds between anti-entropy messages
+* **[rtimer]** - time in seconds between route rumors
+* **[hw3ex2]** - enables name-to-hash mapping
+* **[N]** - the number of nodes in the system, including current peer (used in combination with _hw3ex2_)
+* **[stubbornTimeout]** - resend TLC messages if confirmation majority has not been received in that many seconds (used in combination with _hw3ex2_)
+
+# Demo
+![General Functionalities](../assets/General.jpg?raw=true)
+**1.** Rumor messages received by the current peer <br>
+**2.** Addresses of other nodes the current peer knows directly (e.g. from startup or by receiving a message from them) <br>
+**3.** Names of other nodes the current peer knows of (e.g. has routing information to them) <br>
+**4.** List of files the current peer has (e.g. either shared by the peer or downloaded from other peers); in this example they are all shared <br>
+
+![Private_Download Functionalities](../assets/Download_Private.jpg?raw=true)
+**5.** Private chat history between current node _Clara_ and one of the peers it knows of, _Alice_ <br>
+**6.** Similar to *4*, but in this example the file has been downloaded from another peer (the destination node) by requesting the file's hash and specifying _BeautifulPicture.jpg_ as the name for the file to be saved as <br>
+
+![PublishBlock_Search Functionalities](../assets/PublishBlock_Search.jpg?raw=true)
+**7.** File search results for the keyword _image_; in the shared/downloaded files tab show that the files have also been downloaded <br>
+**8.** Name-to-hash mappings that have been confirmed and the current node knows of <br>
+
 # TODOs
 While working on the project I have noted down some future TODOs (e.g. optimizing implementation, fixing issues, additional functionality):
 ## Code cleaning and simplifications
